@@ -39,6 +39,8 @@ dependencies:
   cloud_firestore: ^5.0.2
   google_sign_in: ^6.2.1
   provider: ^6.1.2
+  http: ^1.2.2
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:

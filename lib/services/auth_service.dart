@@ -6,6 +6,7 @@ class AuthService {
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   User? get currentFirebaseUser => _auth.currentUser;
+  User? get currentUser => _auth.currentUser;
   String? get currentUserId => _auth.currentUser?.uid;
   bool get isUserLoggedIn => _auth.currentUser != null;
 

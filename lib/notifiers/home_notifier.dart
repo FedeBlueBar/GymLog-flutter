@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:gymlog_flutter/models/daily_diet_stats.dart';
 import 'package:gymlog_flutter/models/user_model.dart';
 import 'package:gymlog_flutter/models/workout_log.dart';
+import 'package:gymlog_flutter/models/workout.dart';
+import 'package:gymlog_flutter/models/split_plan.dart';
 import 'package:gymlog_flutter/services/auth_service.dart';
 import 'package:gymlog_flutter/services/user_service.dart';
 
@@ -12,7 +14,7 @@ class HomeNotifier extends ChangeNotifier {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   UserModel? _user;
-  final String _workoutOdierno = "Push Day";
+  String _workoutOdierno = "Nessun allenamento";
   double? _pesoAttuale;
   int _kcalAssunte = 0;
   int _kcalObiettivo = 2000;
@@ -136,6 +138,66 @@ class HomeNotifier extends ChangeNotifier {
         }
         dietStreakAttuale = _calculateDietStreak(dietQualifiedDays);
 
+        // Fetch split plan and workouts to determine recommended workout for today
+        String workoutOdiernoVal = "Nessun allenamento";
+        final splitPlanDoc = await _db.collection('user_splits').doc(uid).get();
+        String targetSplit = "Rest";
+        if (splitPlanDoc.exists) {
+          final plan = SplitPlan.fromMap(splitPlanDoc.data()!);
+          final todayIndex = DateTime.now().weekday - 1; // 0..6 (Mon..Sun)
+          final now = DateTime.now();
+          final dateStr = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+          if (plan.overrides.containsKey(dateStr)) {
+            targetSplit = plan.overrides[dateStr] ?? "Rest";
+          } else if (plan.startDate == 0 || plan.endDate == 0) {
+            targetSplit = plan.split[todayIndex] ?? "Rest";
+          } else {
+            final targetMillis = DateTime(now.year, now.month, now.day, 12, 0).millisecondsSinceEpoch;
+            if (targetMillis >= plan.startDate && targetMillis <= plan.endDate) {
+              targetSplit = plan.split[todayIndex] ?? "Rest";
+            } else {
+              targetSplit = plan.split[todayIndex] ?? "Rest";
+            }
+          }
+        } else {
+          // Fallback to default split plan
+          final defaultSplit = {
+            0: "Push", 1: "Pull", 2: "Rest",
+            3: "Legs", 4: "Cardio", 5: "Addome", 6: "Rest"
+          };
+          final todayIndex = DateTime.now().weekday - 1;
+          targetSplit = defaultSplit[todayIndex] ?? "Rest";
+        }
+
+        if (targetSplit.toLowerCase() == "rest") {
+          workoutOdiernoVal = "Giorno di Riposo";
+        } else {
+          // Fetch workouts to find one matching targetSplit
+          final workoutsSnapshot = await _db.collection('workouts')
+              .where('userId', isEqualTo: uid)
+              .get();
+          final assignedSnapshot = await _db.collection('workouts')
+              .where('assignedTo', isEqualTo: uid)
+              .get();
+
+          final allWorkouts = <Workout>[];
+          for (var doc in workoutsSnapshot.docs) {
+            allWorkouts.add(Workout.fromMap(doc.data(), doc.id));
+          }
+          for (var doc in assignedSnapshot.docs) {
+            allWorkouts.add(Workout.fromMap(doc.data(), doc.id));
+          }
+
+          final matching = allWorkouts.where((w) => w.splitType.toLowerCase() == targetSplit.toLowerCase()).toList();
+          if (matching.isNotEmpty) {
+            workoutOdiernoVal = matching.first.name;
+          } else {
+            workoutOdiernoVal = "Split: $targetSplit (Crea scheda)";
+          }
+        }
+
+        _workoutOdierno = workoutOdiernoVal;
         _kcalObiettivo = kcalObiettivoVal;
         _kcalAssunte = kcalAssunteVal;
         _streakGiorni = streakAttuale;

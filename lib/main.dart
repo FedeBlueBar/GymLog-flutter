@@ -15,6 +15,7 @@ import 'package:gymlog_flutter/screens/register_step2_screen.dart';
 import 'package:gymlog_flutter/screens/google_onboarding_screen.dart';
 import 'package:gymlog_flutter/screens/home_screen.dart';
 import 'package:gymlog_flutter/screens/profile_screen.dart';
+import 'package:gymlog_flutter/screens/workout_screen.dart';
 import 'package:gymlog_flutter/screens/placeholder_screen.dart';
 
 void main() async {
@@ -90,8 +91,13 @@ class MyApp extends StatelessWidget {
       providers: [
         Provider<AuthService>(create: (_) => AuthService()),
         Provider<UserService>(create: (_) => UserService()),
-        ChangeNotifierProvider<WorkoutNotifier>(
+        ChangeNotifierProxyProvider<AuthService, WorkoutNotifier>(
           create: (context) => WorkoutNotifier(),
+          update: (context, authService, previous) {
+            final notifier = previous ?? WorkoutNotifier();
+            notifier.updateUserId(authService.currentFirebaseUser?.uid);
+            return notifier;
+          },
         ),
         ChangeNotifierProxyProvider2<AuthService, UserService, LoginNotifier>(
           create: (context) => LoginNotifier(
@@ -145,7 +151,7 @@ class MyApp extends StatelessWidget {
           '/google_onboarding': (context) => const GoogleOnboardingScreen(),
           '/home': (context) => const HomeScreen(),
           '/profile': (context) => const ProfileScreen(),
-          '/workout': (context) => const PlaceholderScreen(title: "Allenamento"),
+          '/workout': (context) => const WorkoutScreen(),
           '/diet': (context) => const PlaceholderScreen(title: "Dieta"),
           '/community': (context) => const PlaceholderScreen(title: "Community"),
           '/progress': (context) => const PlaceholderScreen(title: "Progressi"),

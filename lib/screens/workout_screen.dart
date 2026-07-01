@@ -1,0 +1,821 @@
+// ignore_for_file: deprecated_member_use, use_build_context_synchronously
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:gymlog_flutter/notifiers/workout_notifier.dart';
+import 'package:gymlog_flutter/widgets/workout_dialogs.dart';
+import 'package:gymlog_flutter/screens/active_workout_screen.dart';
+
+class WorkoutScreen extends StatefulWidget {
+  const WorkoutScreen({super.key});
+
+  @override
+  State<WorkoutScreen> createState() => _WorkoutScreenState();
+}
+
+class _WorkoutScreenState extends State<WorkoutScreen> {
+  int _selectedSuggestedIndex = 0;
+
+  bool _isLogOnDayOfWeek(int logTimestamp, int dayIndex, WorkoutNotifier notifier) {
+    final logDate = DateTime.fromMillisecondsSinceEpoch(logTimestamp);
+    final monday = notifier.getCurrentWeekMonday();
+    final targetDate = monday.add(Duration(days: dayIndex));
+    return logDate.year == targetDate.year &&
+        logDate.month == targetDate.month &&
+        logDate.day == targetDate.day;
+  }
+
+  bool _isLogOnSpecificDate(int logTimestamp, DateTime date) {
+    final logDate = DateTime.fromMillisecondsSinceEpoch(logTimestamp);
+    return logDate.year == date.year &&
+        logDate.month == date.month &&
+        logDate.day == date.day;
+  }
+
+  String _formatDuration(int seconds) {
+    final h = seconds ~/ 3600;
+    final m = (seconds % 3600) ~/ 60;
+    final s = seconds % 60;
+    if (h > 0) {
+      return "${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}";
+    }
+    return "${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}";
+  }
+
+  void _showDatePickerHistory(BuildContext context, WorkoutNotifier notifier) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(primary: Colors.red),
+        ),
+        child: child!,
+      ),
+    );
+
+    if (picked != null) {
+      final logsForDate = notifier.workoutLogs.where((log) {
+        return _isLogOnSpecificDate(log.completedAt, picked);
+      }).toList();
+
+      final formattedDate = "${picked.day}/${picked.month}/${picked.year}";
+
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text("Allenamenti del $formattedDate", style: const TextStyle(fontWeight: FontWeight.bold)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: logsForDate.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24.0),
+                    child: Text(
+                      "Nessun allenamento eseguito in questa data.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: logsForDate.length,
+                    itemBuilder: (context, index) {
+                      final log = logsForDate[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        color: Colors.grey.shade50,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        child: ExpansionTile(
+                          leading: const Icon(Icons.check_circle, color: Colors.green),
+                          title: Text(log.workoutName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text(
+                            "Fatto alle ${DateTime.fromMillisecondsSinceEpoch(log.completedAt).hour}:${DateTime.fromMillisecondsSinceEpoch(log.completedAt).minute.toString().padLeft(2, '0')}",
+                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                          children: log.exercises.map((ex) {
+                            return ListTile(
+                              title: Text(ex.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                              trailing: Text("${ex.sets}x${ex.reps} @ ${ex.weight}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                            );
+                          }).toList(),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("Chiudi", style: TextStyle(color: Colors.black)),
+            )
+          ],
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final notifier = Provider.of<WorkoutNotifier>(context);
+    final selectedDayIndex = notifier.currentDayIndex;
+    final splitForDay = notifier.getSplitForDayIndex(selectedDayIndex);
+
+    final todayIndex = DateTime.now().weekday - 1; // 0..6
+    final isToday = selectedDayIndex == todayIndex;
+
+    // Filter historical logs completed on this day of the week
+    final filteredLogs = notifier.workoutLogs.where((log) {
+      return _isLogOnDayOfWeek(log.completedAt, selectedDayIndex, notifier);
+    }).toList();
+
+    // Workouts suggested for the current selected day split
+    final suggestedWorkouts = notifier.workouts.where((w) {
+      return w.splitType.toLowerCase() == splitForDay.toLowerCase();
+    }).toList();
+
+    final List<String> weekDaysNames = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Allenamento"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_month, color: Colors.red),
+            tooltip: "Seleziona Data Storico",
+            onPressed: () => _showDatePickerHistory(context, notifier),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.red),
+            tooltip: "Impostazioni Split",
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SplitSettingsDialog()),
+              );
+            },
+          )
+        ],
+      ),
+      body: Stack(
+        children: [
+          Column(
+            children: [
+              // WeekDays Selector Row - Equal width day columns (Row with Expandeds)
+              Container(
+                color: Colors.grey.shade100,
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                child: Row(
+                  children: List.generate(7, (index) {
+                    final isSelected = selectedDayIndex == index;
+                    final splitText = notifier.getSplitForDayIndex(index);
+                    final hasLog = notifier.workoutLogs.any(
+                      (log) => _isLogOnDayOfWeek(log.completedAt, index, notifier),
+                    );
+
+                    String splitAbbrev = splitText;
+                    switch (splitText.toLowerCase()) {
+                      case "push":
+                        splitAbbrev = "Push";
+                        break;
+                      case "pull":
+                        splitAbbrev = "Pull";
+                        break;
+                      case "legs":
+                        splitAbbrev = "Legs";
+                        break;
+                      case "cardio":
+                        splitAbbrev = "Cardio";
+                        break;
+                      case "addome":
+                        splitAbbrev = "Core";
+                        break;
+                      case "fullbody":
+                        splitAbbrev = "Full";
+                        break;
+                      case "rest":
+                        splitAbbrev = "Rest";
+                        break;
+                      default:
+                        if (splitText.length > 5) {
+                          splitAbbrev = splitText.substring(0, 5);
+                        }
+                    }
+
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _selectedSuggestedIndex = 0;
+                          });
+                          notifier.selectDay(index);
+                        },
+                        child: Card(
+                          margin: const EdgeInsets.symmetric(horizontal: 2),
+                          elevation: isSelected ? 4 : 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          color: isSelected ? Colors.black : const Color(0xFFF6F5F8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 2.0),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  weekDaysNames[index],
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isSelected ? Colors.white : Colors.black87,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  splitAbbrev,
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    color: isSelected ? Colors.white70 : Colors.grey,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: hasLog ? Colors.green : Colors.transparent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                )
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+
+              // Split Info Box
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Card(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 1,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isToday ? "Allenamento di Oggi" : "Programmazione Giorno",
+                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "Split: $splitForDay",
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            if (notifier.hasDailyOverride(selectedDayIndex))
+                              IconButton(
+                                icon: const Icon(Icons.undo, color: Colors.orange),
+                                tooltip: "Ripristina Split predefinito",
+                                onPressed: () {
+                                  notifier.clearDailyOverride(selectedDayIndex);
+                                },
+                              ),
+                            PopupMenuButton<String>(
+                              icon: const Icon(Icons.edit, color: Colors.red),
+                              onSelected: (val) {
+                                notifier.saveDailyOverride(selectedDayIndex, val);
+                              },
+                              itemBuilder: (ctx) => [
+                                "Push",
+                                "Pull",
+                                "Legs",
+                                "Cardio",
+                                "Addome",
+                                "FullBody",
+                                "Rest"
+                              ].map((opt) {
+                                return PopupMenuItem(value: opt, child: Text("Cambia in $opt"));
+                              }).toList(),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // Scrollable Lobby
+              Expanded(
+                child: notifier.isLoading
+                    ? const Center(child: CircularProgressIndicator(color: Colors.red))
+                    : ListView(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        children: [
+                          if (selectedDayIndex < todayIndex) ...[
+                            // GIORNI PASSATI: Storico degli allenamenti svolti
+                            const Text(
+                              "Storico Allenamenti Svolti",
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                            const Divider(),
+                            if (filteredLogs.isEmpty)
+                              Card(
+                                margin: const EdgeInsets.symmetric(vertical: 8),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                color: const Color(0xFFF6F5F8),
+                                child: const SizedBox(
+                                  height: 120,
+                                  child: Center(
+                                    child: Text(
+                                      "Nessun allenamento eseguito in questo giorno.",
+                                      style: TextStyle(color: Colors.grey),
+                                    ),
+                                  ),
+                                ),
+                              )
+                            else
+                              ...filteredLogs.map((log) {
+                                return Card(
+                                  color: Colors.grey.shade50,
+                                  margin: const EdgeInsets.symmetric(vertical: 6),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: ExpansionTile(
+                                    leading: const Icon(Icons.check_circle, color: Colors.green),
+                                    title: Text(log.workoutName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    subtitle: Text(
+                                      "Fatto alle ${DateTime.fromMillisecondsSinceEpoch(log.completedAt).hour}:${DateTime.fromMillisecondsSinceEpoch(log.completedAt).minute.toString().padLeft(2, '0')}",
+                                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                    ),
+                                    children: log.exercises.map((ex) {
+                                      return ListTile(
+                                        title: Text(ex.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                                        trailing: Text("${ex.sets}x${ex.reps} @ ${ex.weight}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                      );
+                                    }).toList(),
+                                  ),
+                                );
+                              }),
+                          ] else ...[
+                            // OGGI O FUTURO: Suggerito / Riposo e Schede disponibili
+                            if (splitForDay.toLowerCase() == "rest")
+                              Card(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                color: Colors.black.withOpacity(0.04),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.black.withOpacity(0.15)),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  padding: const EdgeInsets.all(28),
+                                  child: Column(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 28,
+                                        backgroundColor: Colors.black.withOpacity(0.1),
+                                        child: const Icon(Icons.bedtime, size: 28, color: Colors.black),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      const Text(
+                                        "Giorno di Riposo",
+                                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      const Text(
+                                        "Il riposo è fondamentale per la crescita e il recupero muscolare. Goditi questa pausa e ricarica le energie!",
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(color: Colors.black87, height: 1.4),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            else if (suggestedWorkouts.isNotEmpty) ...[
+                              // Renders SUGGERITO PER OGGI Card
+                              Builder(builder: (context) {
+                                if (_selectedSuggestedIndex >= suggestedWorkouts.length) {
+                                  _selectedSuggestedIndex = 0;
+                                }
+                                final suggested = suggestedWorkouts[_selectedSuggestedIndex];
+
+                                return Card(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  color: const Color(0xFFF6F5F8),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(20),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black,
+                                                borderRadius: BorderRadius.circular(20),
+                                              ),
+                                              child: const Text(
+                                                "SUGGERITO PER OGGI",
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 9,
+                                                  letterSpacing: 1.0,
+                                                ),
+                                              ),
+                                            ),
+                                            if (suggestedWorkouts.length > 1)
+                                              Text(
+                                                "${_selectedSuggestedIndex + 1} di ${suggestedWorkouts.length}",
+                                                style: const TextStyle(
+                                                  color: Colors.grey,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        if (suggestedWorkouts.length > 1) ...[
+                                          SingleChildScrollView(
+                                            scrollDirection: Axis.horizontal,
+                                            child: Row(
+                                              children: List.generate(suggestedWorkouts.length, (idx) {
+                                                final w = suggestedWorkouts[idx];
+                                                final isSel = idx == _selectedSuggestedIndex;
+                                                return Padding(
+                                                  padding: const EdgeInsets.only(right: 8.0, bottom: 8.0),
+                                                  child: ChoiceChip(
+                                                    label: Text(w.name, style: TextStyle(color: isSel ? Colors.white : Colors.black, fontSize: 11)),
+                                                    selected: isSel,
+                                                    selectedColor: Colors.black,
+                                                    backgroundColor: Colors.black.withOpacity(0.08),
+                                                    onSelected: (selected) {
+                                                      if (selected) {
+                                                        setState(() {
+                                                          _selectedSuggestedIndex = idx;
+                                                        });
+                                                      }
+                                                    },
+                                                  ),
+                                                );
+                                              }),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                        ],
+                                        Text(
+                                          suggested.name,
+                                          style: const TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black.withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                "${suggested.exercises.length} esercizi",
+                                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black.withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                "Split: ${suggested.splitType}",
+                                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        const Divider(),
+                                        const SizedBox(height: 8),
+                                        ...suggested.exercises.take(3).map((ex) {
+                                          return Padding(
+                                            padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.fitness_center, size: 16, color: Colors.black.withOpacity(0.8)),
+                                                const SizedBox(width: 8),
+                                                Text(ex.name, style: const TextStyle(fontWeight: FontWeight.w500)),
+                                              ],
+                                            ),
+                                          );
+                                        }),
+                                        if (suggested.exercises.length > 3)
+                                          Padding(
+                                            padding: const EdgeInsets.only(left: 24.0, top: 4.0),
+                                            child: Text(
+                                              "+ altri ${suggested.exercises.length - 3} esercizi",
+                                              style: TextStyle(color: Colors.black.withOpacity(0.7), fontSize: 12),
+                                            ),
+                                          ),
+                                        if (isToday) ...[
+                                          const SizedBox(height: 16),
+                                          ElevatedButton.icon(
+                                            icon: const Icon(Icons.play_arrow, color: Colors.white),
+                                            label: const Text(
+                                              "AVVIA ALLENAMENTO",
+                                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                                            ),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.black,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                              minimumSize: const Size(double.infinity, 44),
+                                              elevation: 0,
+                                            ),
+                                            onPressed: () {
+                                              if (notifier.activeWorkout != null && notifier.activeWorkout?.id != suggested.id) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(content: Text("C'è già un allenamento in corso! Termina o annulla quello prima.")),
+                                                );
+                                                return;
+                                              }
+                                              if (notifier.activeWorkout?.id != suggested.id) {
+                                                notifier.startWorkout(suggested);
+                                              }
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(builder: (ctx) => const ActiveWorkoutScreen()),
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ],
+                            const SizedBox(height: 20),
+
+                            // Schede disponibili header
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  "Tutte le schede",
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                ),
+                                TextButton.icon(
+                                  icon: const Icon(Icons.add, color: Colors.red, size: 18),
+                                  label: const Text("CREA SCHEDA", style: TextStyle(color: Colors.red, fontSize: 13)),
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (ctx) => const WorkoutPlanDialog()),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            if (notifier.workouts.isEmpty)
+                              const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 24.0),
+                                  child: Text("Nessuna scheda creata. Clicca su Crea Scheda.", style: TextStyle(color: Colors.grey)),
+                                ),
+                              )
+                            else
+                              ...notifier.workouts.map((w) {
+                                final isCurrentActive = notifier.activeWorkout?.id == w.id;
+
+                                return Card(
+                                  margin: const EdgeInsets.symmetric(vertical: 6),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: InkWell(
+                                            onTap: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(builder: (ctx) => WorkoutPlanDialog(workout: w)),
+                                              );
+                                            },
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  w.name,
+                                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  "${w.exercises.length} esercizi • Split: ${w.splitType}",
+                                                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                                ),
+                                                if (w.senderName != null && w.senderName!.isNotEmpty)
+                                                  Padding(
+                                                    padding: const EdgeInsets.only(top: 4.0),
+                                                    child: Text(
+                                                      "Assegnata da PT: ${w.senderName}",
+                                                      style: const TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        Row(
+                                          children: [
+                                            ElevatedButton(
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: isCurrentActive ? Colors.green : Colors.red,
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                              ),
+                                              onPressed: () {
+                                                if (notifier.activeWorkout != null && !isCurrentActive) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    const SnackBar(content: Text("C'è già un allenamento in corso! Termina o annulla quello prima.")),
+                                                  );
+                                                  return;
+                                                }
+                                                if (!isCurrentActive) {
+                                                  notifier.startWorkout(w);
+                                                }
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(builder: (ctx) => const ActiveWorkoutScreen()),
+                                                );
+                                              },
+                                              child: Text(
+                                                isCurrentActive ? "RIPRENDI" : "INIZIA",
+                                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                              ),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(Icons.delete_outline, color: Colors.grey),
+                                              onPressed: () {
+                                                showDialog(
+                                                  context: context,
+                                                  builder: (ctx) => AlertDialog(
+                                                    title: const Text("Elimina Scheda"),
+                                                    content: Text("Sei sicuro di voler eliminare la scheda '${w.name}'?"),
+                                                    actions: [
+                                                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Annulla")),
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          notifier.deleteWorkout(w.id);
+                                                          Navigator.pop(ctx);
+                                                        },
+                                                        child: const Text("Elimina", style: TextStyle(color: Colors.red)),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }),
+
+                            const SizedBox(height: 24),
+                            const Text(
+                              "Cronologia allenamenti oggi",
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                            const Divider(),
+                            if (filteredLogs.isEmpty)
+                              const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 24.0),
+                                  child: Text("Nessun allenamento registrato per questa data.", style: TextStyle(color: Colors.grey)),
+                                ),
+                              )
+                            else
+                              ...filteredLogs.map((log) {
+                                return Card(
+                                  color: Colors.grey.shade50,
+                                  margin: const EdgeInsets.symmetric(vertical: 6),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  child: ExpansionTile(
+                                    leading: const Icon(Icons.check_circle, color: Colors.green),
+                                    title: Text(log.workoutName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    subtitle: Text(
+                                      "Fatto alle ${DateTime.fromMillisecondsSinceEpoch(log.completedAt).hour}:${DateTime.fromMillisecondsSinceEpoch(log.completedAt).minute.toString().padLeft(2, '0')}",
+                                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                    ),
+                                    children: log.exercises.map((ex) {
+                                      return ListTile(
+                                        title: Text(ex.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                                        trailing: Text("${ex.sets}x${ex.reps} @ ${ex.weight}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                      );
+                                    }).toList(),
+                                  ),
+                                );
+                              }),
+                          ],
+                          const SizedBox(height: 80), // extra padding for floating active reminder card
+                        ],
+                      ),
+              )
+            ],
+          ),
+
+          // Floating Minimized Active Workout Reminder Card
+          if (notifier.activeWorkout != null && notifier.isMinimized)
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: Card(
+                color: Colors.red.shade900,
+                elevation: 6,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: InkWell(
+                  onTap: () {
+                    notifier.setWorkoutMinimized(false);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (ctx) => const ActiveWorkoutScreen()),
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.play_circle_filled, color: Colors.white, size: 28),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "Allenamento in corso...",
+                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                                ),
+                                Text(
+                                  notifier.activeWorkout!.name,
+                                  style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        Text(
+                          _formatDuration(notifier.elapsedSeconds),
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
