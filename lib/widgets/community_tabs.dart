@@ -60,7 +60,7 @@ class FriendsTab extends StatelessWidget {
                 Text("${user.nome} ${user.cognome}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 Text("@${user.username}", style: const TextStyle(color: Colors.grey, fontSize: 12)),
                 const SizedBox(height: 4),
-                Text("Livello ${stat.level} • ${stat.workoutsCount} Allenamenti", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                Text("${stat.workoutsCount} Allenamenti", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
               ],
             ),
           ),
@@ -380,7 +380,8 @@ class SearchTab extends StatelessWidget {
   final Function(String) onQueryChange;
   final List<UserModel> results;
   final bool isSearching;
-  final bool isCurrentUserPt;
+  final UserModel? currentUser;
+  final List<UserModel> friends;
   final Function(String) onSendFriend;
   final Function(String) onSendCoaching;
 
@@ -390,7 +391,8 @@ class SearchTab extends StatelessWidget {
     required this.onQueryChange,
     required this.results,
     required this.isSearching,
-    required this.isCurrentUserPt,
+    required this.currentUser,
+    required this.friends,
     required this.onSendFriend,
     required this.onSendCoaching,
   }) : super(key: key);
@@ -445,6 +447,9 @@ class SearchTab extends StatelessWidget {
   }
 
   Widget _buildSearchResult(UserModel user, BuildContext context) {
+    final bool isFriend = friends.any((f) => f.uid == user.uid);
+    final bool hasThisPt = currentUser?.hasPersonalTrainer == user.uid;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -488,30 +493,51 @@ class SearchTab extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.person_add, size: 16),
-                  label: const Text("Amico"),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.black,
-                    side: BorderSide(color: Colors.black.withOpacity(0.2)),
-                  ),
-                  onPressed: () => onSendFriend(user.uid),
-                ),
-              ),
-              if (user.isPersonalTrainer && !isCurrentUserPt) ...[
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.fitness_center, size: 16),
-                    label: const Text("Richiedi PT"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE67E22),
-                      foregroundColor: Colors.white,
+              if (isFriend)
+                const Expanded(
+                  child: Center(
+                    child: Text(
+                      "Già amico",
+                      style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
                     ),
-                    onPressed: () => onSendCoaching(user.uid),
                   ),
                 )
+              else
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.person_add, size: 16),
+                    label: const Text("Amico"),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black,
+                      side: BorderSide(color: Colors.black.withOpacity(0.2)),
+                    ),
+                    onPressed: () => onSendFriend(user.uid),
+                  ),
+                ),
+              if (user.isPersonalTrainer && !(currentUser?.isPersonalTrainer ?? false)) ...[
+                const SizedBox(width: 8),
+                if (hasThisPt)
+                  const Expanded(
+                    child: Center(
+                      child: Text(
+                        "Sei già seguito",
+                        style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.fitness_center, size: 16),
+                      label: const Text("Richiedi PT", style: TextStyle(fontSize: 12)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE67E22),
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () => onSendCoaching(user.uid),
+                    ),
+                  )
               ]
             ],
           )

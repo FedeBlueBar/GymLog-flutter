@@ -633,7 +633,13 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                               children: [
                                                 Icon(Icons.fitness_center, size: 16, color: Colors.black.withOpacity(0.8)),
                                                 const SizedBox(width: 8),
-                                                Text(ex.name, style: const TextStyle(fontWeight: FontWeight.w500)),
+                                                Expanded(
+                                                  child: Text(
+                                                    ex.name,
+                                                    style: const TextStyle(fontWeight: FontWeight.w500),
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
                                               ],
                                             ),
                                           );
