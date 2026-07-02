@@ -40,8 +40,8 @@ class UserModel {
       altezza: (map['altezza'] as num?)?.toInt() ?? 0,
       peso: (map['peso'] as num?)?.toDouble() ?? 0.0,
       obiettivo: map['obiettivo'] ?? '',
-      isPersonalTrainer: map['personalTrainer'] ?? false,
-      hasPersonalTrainer: map['hasPersonalTrainer'],
+      isPersonalTrainer: map['personalTrainer'] ?? map['isPersonalTrainer'] ?? false,
+      hasPersonalTrainer: map['hasPersonalTrainer']?.toString(),
       photoUrl: map['photoUrl'] ?? '',
       createdAt: (map['createdAt'] as num?)?.toInt() ?? 0,
     );

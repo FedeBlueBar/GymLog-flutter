@@ -41,7 +41,7 @@ class Workout {
       assignedTo: map['assignedTo'],
       name: map['name'] ?? "",
       exercises: exercisesList,
-      createdAt: (map['createdAt'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
+      createdAt: map['createdAt'] is num ? (map['createdAt'] as num).toInt() : (map['createdAt']?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch),
       senderId: map['senderId'],
       senderName: map['senderName'],
       senderIsPersonalTrainer: map['senderIsPersonalTrainer'] ?? false,

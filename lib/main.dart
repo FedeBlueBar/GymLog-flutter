@@ -17,6 +17,7 @@ import 'package:gymlog_flutter/screens/home_screen.dart';
 import 'package:gymlog_flutter/screens/profile_screen.dart';
 import 'package:gymlog_flutter/screens/workout_screen.dart';
 import 'package:gymlog_flutter/screens/placeholder_screen.dart';
+import 'package:gymlog_flutter/screens/community_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -141,6 +142,10 @@ class MyApp extends StatelessWidget {
             primary: Colors.black,
             secondary: Colors.black54,
           ),
+          dialogTheme: const DialogThemeData(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.white,
+          ),
           useMaterial3: true,
         ),
         home: const AuthWrapper(),
@@ -153,7 +158,7 @@ class MyApp extends StatelessWidget {
           '/profile': (context) => const ProfileScreen(),
           '/workout': (context) => const WorkoutScreen(),
           '/diet': (context) => const PlaceholderScreen(title: "Dieta"),
-          '/community': (context) => const PlaceholderScreen(title: "Community"),
+          '/community': (context) => const CommunityScreen(),
           '/progress': (context) => const PlaceholderScreen(title: "Progressi"),
         },
       ),

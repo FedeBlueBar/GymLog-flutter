@@ -30,24 +30,24 @@ class ActiveWorkoutScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(workout.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            Text(
-              "Timer: ${_formatDuration(notifier.elapsedSeconds)}",
-              style: const TextStyle(fontSize: 12, color: Colors.redAccent),
-            ),
-          ],
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () {
+            notifier.setWorkoutMinimized(true);
+            Navigator.pop(context);
+          },
         ),
-        automaticallyImplyLeading: false,
+        title: Text(workout.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        centerTitle: false,
         actions: [
-          TextButton(
-            onPressed: () {
-              notifier.setWorkoutMinimized(true);
-              Navigator.pop(context);
-            },
-            child: const Text("Riduci", style: TextStyle(color: Colors.red)),
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: Center(
+              child: Text(
+                "Timer: ${_formatDuration(notifier.elapsedSeconds)}",
+                style: const TextStyle(fontSize: 14, color: Colors.redAccent, fontWeight: FontWeight.bold),
+              ),
+            ),
           )
         ],
       ),
@@ -65,7 +65,9 @@ class ActiveWorkoutScreen extends StatelessWidget {
                 return Card(
                   margin: const EdgeInsets.symmetric(vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  elevation: 2,
+                  color: const Color(0xFFF6F5F8),
+                  surfaceTintColor: Colors.transparent,
+                  elevation: 0,
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(

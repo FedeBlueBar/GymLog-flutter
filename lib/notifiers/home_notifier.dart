@@ -173,28 +173,7 @@ class HomeNotifier extends ChangeNotifier {
         if (targetSplit.toLowerCase() == "rest") {
           workoutOdiernoVal = "Giorno di Riposo";
         } else {
-          // Fetch workouts to find one matching targetSplit
-          final workoutsSnapshot = await _db.collection('workouts')
-              .where('userId', isEqualTo: uid)
-              .get();
-          final assignedSnapshot = await _db.collection('workouts')
-              .where('assignedTo', isEqualTo: uid)
-              .get();
-
-          final allWorkouts = <Workout>[];
-          for (var doc in workoutsSnapshot.docs) {
-            allWorkouts.add(Workout.fromMap(doc.data(), doc.id));
-          }
-          for (var doc in assignedSnapshot.docs) {
-            allWorkouts.add(Workout.fromMap(doc.data(), doc.id));
-          }
-
-          final matching = allWorkouts.where((w) => w.splitType.toLowerCase() == targetSplit.toLowerCase()).toList();
-          if (matching.isNotEmpty) {
-            workoutOdiernoVal = matching.first.name;
-          } else {
-            workoutOdiernoVal = "Split: $targetSplit (Crea scheda)";
-          }
+          workoutOdiernoVal = "Split: $targetSplit";
         }
 
         _workoutOdierno = workoutOdiernoVal;

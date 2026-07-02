@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gymlog_flutter/notifiers/workout_notifier.dart';
+import 'package:gymlog_flutter/notifiers/home_notifier.dart';
 import 'package:gymlog_flutter/widgets/workout_dialogs.dart';
 import 'package:gymlog_flutter/screens/active_workout_screen.dart';
 
@@ -31,6 +32,131 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         logDate.day == date.day;
   }
 
+  Widget _buildWorkoutLogCard(dynamic log) {
+    final date = DateTime.fromMillisecondsSinceEpoch(log.completedAt);
+    final timeString = "${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.black.withOpacity(0.1), width: 0.5),
+      ),
+      color: Colors.white,
+      elevation: 2,
+      clipBehavior: Clip.antiAlias,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              width: 5,
+              color: const Color(0xFF4CAF50),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            log.workoutName,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8F5E9),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.check, color: Color(0xFF2E7D32), size: 12),
+                              const SizedBox(width: 4),
+                              Text(
+                                "Completato ore $timeString",
+                                style: const TextStyle(
+                                  color: Color(0xFF2E7D32),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    ...log.exercises.map((ex) {
+                      final setsCount = int.tryParse(ex.sets.toString()) ?? 0;
+                      final repsText = ex.reps.toString().isEmpty ? "0" : ex.reps;
+                      final weightText = ex.weight.toString().isEmpty ? "0" : ex.weight;
+                      final detailsSummary = setsCount > 0 
+                          ? "$setsCount set • $repsText rep @ $weightText kg" 
+                          : "${ex.sets} set • ${ex.reps} rep @ ${ex.weight} kg";
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF6F5F8).withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.black.withOpacity(0.05), width: 0.5),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle, color: Color(0xFF4CAF50), size: 16),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    ex.name,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    detailsSummary,
+                                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Map<String, Color> _getSplitColors(String splitType) {
+    switch (splitType.toLowerCase().trim()) {
+      case "push": return {"bg": const Color(0xFFFFF0E6), "text": const Color(0xFFFF6D00)}!;
+      case "pull": return {"bg": const Color(0xFFE3F2FD), "text": const Color(0xFF1565C0)}!;
+      case "legs": return {"bg": const Color(0xFFE8F5E9), "text": const Color(0xFF2E7D32)}!;
+      case "cardio": return {"bg": const Color(0xFFFCE4EC), "text": const Color(0xFFC2185B)}!;
+      case "full body":
+      case "fullbody": return {"bg": const Color(0xFFF3E5F5), "text": const Color(0xFF6A1B9A)}!;
+      case "upper body": return {"bg": const Color(0xFFE0F7FA), "text": const Color(0xFF00838F)}!;
+      case "lower body": return {"bg": const Color(0xFFEFEBE9), "text": const Color(0xFF4E342E)}!;
+      case "addome": return {"bg": const Color(0xFFFFFDE7), "text": const Color(0xFFF57F17)}!;
+      default: return {"bg": const Color(0xFFF5F5F5), "text": const Color(0xFF616161)}!;
+    }
+  }
+
   String _formatDuration(int seconds) {
     final h = seconds ~/ 3600;
     final m = (seconds % 3600) ~/ 60;
@@ -49,7 +175,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       lastDate: DateTime(2030),
       builder: (ctx, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(primary: Colors.red),
+          colorScheme: const ColorScheme.light(primary: Colors.black),
         ),
         child: child!,
       ),
@@ -81,26 +207,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                     shrinkWrap: true,
                     itemCount: logsForDate.length,
                     itemBuilder: (context, index) {
-                      final log = logsForDate[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 6),
-                        color: Colors.grey.shade50,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        child: ExpansionTile(
-                          leading: const Icon(Icons.check_circle, color: Colors.green),
-                          title: Text(log.workoutName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text(
-                            "Fatto alle ${DateTime.fromMillisecondsSinceEpoch(log.completedAt).hour}:${DateTime.fromMillisecondsSinceEpoch(log.completedAt).minute.toString().padLeft(2, '0')}",
-                            style: const TextStyle(fontSize: 12, color: Colors.grey),
-                          ),
-                          children: log.exercises.map((ex) {
-                            return ListTile(
-                              title: Text(ex.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                              trailing: Text("${ex.sets}x${ex.reps} @ ${ex.weight}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                            );
-                          }).toList(),
-                        ),
-                      );
+                      return _buildWorkoutLogCard(logsForDate[index]);
                     },
                   ),
           ),
@@ -137,16 +244,20 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     final List<String> weekDaysNames = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("Allenamento"),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        title: const Text("Allenamenti", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.calendar_month, color: Colors.red),
+            icon: const Icon(Icons.calendar_month, color: Colors.black),
             tooltip: "Seleziona Data Storico",
             onPressed: () => _showDatePickerHistory(context, notifier),
           ),
           IconButton(
-            icon: const Icon(Icons.settings, color: Colors.red),
+            icon: const Icon(Icons.settings, color: Colors.black),
             tooltip: "Impostazioni Split",
             onPressed: () {
               Navigator.push(
@@ -163,7 +274,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             children: [
               // WeekDays Selector Row - Equal width day columns (Row with Expandeds)
               Container(
-                color: Colors.grey.shade100,
+                color: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
                 child: Row(
                   children: List.generate(7, (index) {
@@ -226,7 +337,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                   weekDaysNames[index],
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: isSelected ? Colors.white : Colors.black87,
+                                    color: isSelected ? Colors.white : Colors.grey.shade800,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -235,7 +346,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                   splitAbbrev,
                                   style: TextStyle(
                                     fontSize: 9,
-                                    color: isSelected ? Colors.white70 : Colors.grey,
+                                    color: isSelected ? Colors.white70 : Colors.grey.shade600,
                                     fontWeight: FontWeight.bold,
                                   ),
                                   maxLines: 1,
@@ -265,7 +376,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 padding: const EdgeInsets.all(12.0),
                 child: Card(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 1,
+                  elevation: 0,
+                  color: const Color(0xFFF6F5F8),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
                     child: Row(
@@ -291,18 +403,17 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                         ),
                         Row(
                           children: [
-                            if (notifier.hasDailyOverride(selectedDayIndex))
-                              IconButton(
-                                icon: const Icon(Icons.undo, color: Colors.orange),
-                                tooltip: "Ripristina Split predefinito",
-                                onPressed: () {
-                                  notifier.clearDailyOverride(selectedDayIndex);
-                                },
-                              ),
+
                             PopupMenuButton<String>(
-                              icon: const Icon(Icons.edit, color: Colors.red),
-                              onSelected: (val) {
-                                notifier.saveDailyOverride(selectedDayIndex, val);
+                              icon: const Icon(Icons.edit, color: Colors.black),
+                              color: Colors.white,
+                              surfaceTintColor: Colors.transparent,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              onSelected: (val) async {
+                                await notifier.saveDailyOverride(selectedDayIndex, val);
+                                if (context.mounted) {
+                                  Provider.of<HomeNotifier>(context, listen: false).loadHomeData();
+                                }
                               },
                               itemBuilder: (ctx) => [
                                 "Push",
@@ -313,7 +424,13 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                 "FullBody",
                                 "Rest"
                               ].map((opt) {
-                                return PopupMenuItem(value: opt, child: Text("Cambia in $opt"));
+                                return PopupMenuItem(
+                                  value: opt, 
+                                  child: Text(
+                                    "Cambia in $opt",
+                                    style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w500),
+                                  )
+                                );
                               }).toList(),
                             ),
                           ],
@@ -356,29 +473,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                 ),
                               )
                             else
-                              ...filteredLogs.map((log) {
-                                return Card(
-                                  color: Colors.grey.shade50,
-                                  margin: const EdgeInsets.symmetric(vertical: 6),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: ExpansionTile(
-                                    leading: const Icon(Icons.check_circle, color: Colors.green),
-                                    title: Text(log.workoutName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                    subtitle: Text(
-                                      "Fatto alle ${DateTime.fromMillisecondsSinceEpoch(log.completedAt).hour}:${DateTime.fromMillisecondsSinceEpoch(log.completedAt).minute.toString().padLeft(2, '0')}",
-                                      style: const TextStyle(fontSize: 12, color: Colors.grey),
-                                    ),
-                                    children: log.exercises.map((ex) {
-                                      return ListTile(
-                                        title: Text(ex.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                                        trailing: Text("${ex.sets}x${ex.reps} @ ${ex.weight}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                                      );
-                                    }).toList(),
-                                  ),
-                                );
-                              }),
+                              ...filteredLogs.map((log) => _buildWorkoutLogCard(log)),
                           ] else ...[
                             // OGGI O FUTURO: Suggerito / Riposo e Schede disponibili
                             if (splitForDay.toLowerCase() == "rest")
@@ -591,16 +686,23 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                             const SizedBox(height: 20),
 
                             // Schede disponibili header
+                            const Divider(height: 32),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Text(
-                                  "Tutte le schede",
-                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                  "Modifica Scheda",
+                                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                                 ),
-                                TextButton.icon(
-                                  icon: const Icon(Icons.add, color: Colors.red, size: 18),
-                                  label: const Text("CREA SCHEDA", style: TextStyle(color: Colors.red, fontSize: 13)),
+                                ElevatedButton.icon(
+                                  icon: const Icon(Icons.add, color: Colors.white, size: 16),
+                                  label: const Text("Crea Scheda", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.black,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                    elevation: 0,
+                                  ),
                                   onPressed: () {
                                     Navigator.push(
                                       context,
@@ -610,110 +712,171 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 16),
                             if (notifier.workouts.isEmpty)
-                              const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 24.0),
-                                  child: Text("Nessuna scheda creata. Clicca su Crea Scheda.", style: TextStyle(color: Colors.grey)),
+                              Card(
+                                color: const Color(0xFFF6F5F8).withOpacity(0.5),
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                child: const SizedBox(
+                                  height: 120,
+                                  child: Center(
+                                    child: Text(
+                                      "Nessuna scheda creata. Clicca su Crea Scheda per iniziare.",
+                                      style: TextStyle(color: Colors.grey),
+                                    ),
+                                  ),
                                 ),
                               )
                             else
                               ...notifier.workouts.map((w) {
                                 final isCurrentActive = notifier.activeWorkout?.id == w.id;
+                                final tagColors = _getSplitColors(w.splitType);
 
                                 return Card(
-                                  margin: const EdgeInsets.symmetric(vertical: 6),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(12),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: InkWell(
-                                            onTap: () {
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(builder: (ctx) => WorkoutPlanDialog(workout: w)),
-                                              );
-                                            },
+                                  margin: const EdgeInsets.symmetric(vertical: 8),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                    side: BorderSide(color: Colors.black.withOpacity(0.05), width: 1),
+                                  ),
+                                  elevation: 2,
+                                  color: Colors.white,
+                                  shadowColor: Colors.black.withOpacity(0.2),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(20),
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(builder: (ctx) => WorkoutPlanDialog(workout: w)),
+                                      );
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(20),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
                                             child: Column(
                                               crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
                                                 Text(
                                                   w.name,
-                                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                                                 ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  "${w.exercises.length} esercizi • Split: ${w.splitType}",
-                                                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                                const SizedBox(height: 8),
+                                                Row(
+                                                  children: [
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                      decoration: BoxDecoration(
+                                                        color: tagColors["bg"],
+                                                        borderRadius: BorderRadius.circular(6),
+                                                      ),
+                                                      child: Text(
+                                                        w.splitType.toUpperCase(),
+                                                        style: TextStyle(
+                                                          color: tagColors["text"],
+                                                          fontSize: 10,
+                                                          fontWeight: FontWeight.w900,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Text(
+                                                      "${w.exercises.length} esercizi",
+                                                      style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+                                                    ),
+                                                  ],
                                                 ),
                                                 if (w.senderName != null && w.senderName!.isNotEmpty)
                                                   Padding(
-                                                    padding: const EdgeInsets.only(top: 4.0),
+                                                    padding: const EdgeInsets.only(top: 6.0),
                                                     child: Text(
                                                       "Assegnata da PT: ${w.senderName}",
-                                                      style: const TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold),
+                                                      style: const TextStyle(color: Colors.black87, fontSize: 11, fontWeight: FontWeight.bold),
                                                     ),
                                                   ),
                                               ],
                                             ),
                                           ),
-                                        ),
-                                        Row(
-                                          children: [
-                                            ElevatedButton(
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: isCurrentActive ? Colors.green : Colors.red,
-                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                              ),
-                                              onPressed: () {
-                                                if (notifier.activeWorkout != null && !isCurrentActive) {
-                                                  ScaffoldMessenger.of(context).showSnackBar(
-                                                    const SnackBar(content: Text("C'è già un allenamento in corso! Termina o annulla quello prima.")),
-                                                  );
-                                                  return;
-                                                }
-                                                if (!isCurrentActive) {
-                                                  notifier.startWorkout(w);
-                                                }
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(builder: (ctx) => const ActiveWorkoutScreen()),
-                                                );
-                                              },
-                                              child: Text(
-                                                isCurrentActive ? "RIPRENDI" : "INIZIA",
-                                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                                              ),
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(Icons.delete_outline, color: Colors.grey),
-                                              onPressed: () {
-                                                showDialog(
-                                                  context: context,
-                                                  builder: (ctx) => AlertDialog(
-                                                    title: const Text("Elimina Scheda"),
-                                                    content: Text("Sei sicuro di voler eliminare la scheda '${w.name}'?"),
-                                                    actions: [
-                                                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Annulla")),
-                                                      TextButton(
-                                                        onPressed: () {
-                                                          notifier.deleteWorkout(w.id);
-                                                          Navigator.pop(ctx);
-                                                        },
-                                                        child: const Text("Elimina", style: TextStyle(color: Colors.red)),
-                                                      ),
-                                                    ],
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.end,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  IconButton(
+                                                    icon: const Icon(Icons.edit, color: Colors.black87, size: 20),
+                                                    style: IconButton.styleFrom(
+                                                      backgroundColor: Colors.black.withOpacity(0.05),
+                                                      shape: const CircleBorder(),
+                                                    ),
+                                                    onPressed: () {
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(builder: (ctx) => WorkoutPlanDialog(workout: w)),
+                                                      );
+                                                    },
                                                   ),
-                                                );
-                                              },
-                                            ),
-                                          ],
-                                        ),
-                                      ],
+                                                  IconButton(
+                                                    icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                                                    style: IconButton.styleFrom(
+                                                      backgroundColor: Colors.red.withOpacity(0.05),
+                                                      shape: const CircleBorder(),
+                                                    ),
+                                                    onPressed: () {
+                                                      showDialog(
+                                                        context: context,
+                                                        builder: (ctx) => AlertDialog(
+                                                          title: const Text("Elimina Scheda"),
+                                                          content: Text("Sei sicuro di voler eliminare la scheda '${w.name}'?"),
+                                                          actions: [
+                                                            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Annulla")),
+                                                            TextButton(
+                                                              onPressed: () {
+                                                                notifier.deleteWorkout(w.id);
+                                                                Navigator.pop(ctx);
+                                                              },
+                                                              child: const Text("Elimina", style: TextStyle(color: Colors.red)),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      );
+                                                    },
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 8),
+                                              ElevatedButton(
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: isCurrentActive ? Colors.green : Colors.black,
+                                                  foregroundColor: Colors.white,
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                                  elevation: 0,
+                                                ),
+                                                onPressed: () {
+                                                  if (notifier.activeWorkout != null && !isCurrentActive) {
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      const SnackBar(content: Text("C'è già un allenamento in corso! Termina o annulla quello prima.")),
+                                                    );
+                                                    return;
+                                                  }
+                                                  if (!isCurrentActive) {
+                                                    notifier.startWorkout(w);
+                                                  }
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(builder: (ctx) => const ActiveWorkoutScreen()),
+                                                  );
+                                                },
+                                                child: Text(
+                                                  isCurrentActive ? "RIPRENDI" : "INIZIA",
+                                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 );
@@ -733,27 +896,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                 ),
                               )
                             else
-                              ...filteredLogs.map((log) {
-                                return Card(
-                                  color: Colors.grey.shade50,
-                                  margin: const EdgeInsets.symmetric(vertical: 6),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  child: ExpansionTile(
-                                    leading: const Icon(Icons.check_circle, color: Colors.green),
-                                    title: Text(log.workoutName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                    subtitle: Text(
-                                      "Fatto alle ${DateTime.fromMillisecondsSinceEpoch(log.completedAt).hour}:${DateTime.fromMillisecondsSinceEpoch(log.completedAt).minute.toString().padLeft(2, '0')}",
-                                      style: const TextStyle(fontSize: 12, color: Colors.grey),
-                                    ),
-                                    children: log.exercises.map((ex) {
-                                      return ListTile(
-                                        title: Text(ex.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                                        trailing: Text("${ex.sets}x${ex.reps} @ ${ex.weight}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                                      );
-                                    }).toList(),
-                                  ),
-                                );
-                              }),
+                              ...filteredLogs.map((log) => _buildWorkoutLogCard(log)),
                           ],
                           const SizedBox(height: 80), // extra padding for floating active reminder card
                         ],
@@ -769,10 +912,14 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
               right: 16,
               bottom: 16,
               child: Card(
-                color: Colors.red.shade900,
-                elevation: 6,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                color: Colors.white,
+                elevation: 1,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: Colors.red.withOpacity(0.8), width: 1),
+                ),
                 child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
                   onTap: () {
                     notifier.setWorkoutMinimized(false);
                     Navigator.push(
@@ -781,32 +928,54 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                     );
                   },
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.play_circle_filled, color: Colors.white, size: 28),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  "Allenamento in corso...",
-                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 10,
+                                height: 10,
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.8),
+                                  shape: BoxShape.circle,
                                 ),
-                                Text(
-                                  notifier.activeWorkout!.name,
-                                  style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      "ALLENAMENTO IN CORSO",
+                                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.w900, fontSize: 10, letterSpacing: 1.0),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      notifier.activeWorkout!.name,
+                                      style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          ],
+                              ),
+                            ],
+                          ),
                         ),
-                        Text(
-                          _formatDuration(notifier.elapsedSeconds),
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                        TextButton.icon(
+                          style: TextButton.styleFrom(foregroundColor: Colors.red, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
+                          onPressed: () {
+                            notifier.setWorkoutMinimized(false);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (ctx) => const ActiveWorkoutScreen()),
+                            );
+                          },
+                          label: const Text("RIPRENDI", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12)),
+                          icon: const Icon(Icons.play_arrow, size: 18),
                         ),
                       ],
                     ),

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:gymlog_flutter/models/workout.dart';
 import 'package:gymlog_flutter/models/exercise.dart';
 import 'package:gymlog_flutter/notifiers/workout_notifier.dart';
+import 'package:gymlog_flutter/notifiers/home_notifier.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Dialog to create or edit a Workout routine template.
@@ -73,11 +74,17 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
     final notifier = Provider.of<WorkoutNotifier>(context, listen: false);
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(widget.workout == null ? "Nuova Scheda" : "Modifica Scheda"),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        title: Text(
+          widget.workout == null ? "Nuova Scheda" : "Modifica Scheda",
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.check, color: Colors.red),
+          TextButton(
             onPressed: () async {
               if (_formKey.currentState!.validate()) {
                 if (_exercises.isEmpty) {
@@ -104,10 +111,15 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
                 }
 
                 if (mounted) {
+                  Provider.of<HomeNotifier>(context, listen: false).loadHomeData();
                   Navigator.pop(context);
                 }
               }
             },
+            child: const Text(
+              "SALVA",
+              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+            ),
           )
         ],
       ),
@@ -119,23 +131,42 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
             children: [
               TextFormField(
                 controller: _nameController,
+                cursorColor: Colors.black,
                 decoration: InputDecoration(
                   labelText: "Nome Allenamento",
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  labelStyle: const TextStyle(color: Colors.black),
+                  filled: true,
+                  fillColor: const Color(0xFFF6F5F8),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.red, width: 2),
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Colors.black, width: 1.5),
                   ),
                 ),
                 validator: (val) =>
                     (val == null || val.trim().isEmpty) ? "Inserisci il nome" : null,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               DropdownButtonFormField<String>(
                 initialValue: _selectedSplit,
+                iconEnabledColor: Colors.black,
+                dropdownColor: Colors.white,
                 decoration: InputDecoration(
                   labelText: "Tipo di Split",
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  labelStyle: const TextStyle(color: Colors.black),
+                  filled: true,
+                  fillColor: const Color(0xFFF6F5F8),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.black, width: 1.5),
+                  ),
                 ),
                 items: _splitTypes.map((type) {
                   return DropdownMenuItem(value: type, child: Text(type));
@@ -156,9 +187,15 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
                     "Esercizi nella scheda",
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                  TextButton.icon(
-                    icon: const Icon(Icons.add, color: Colors.red),
-                    label: const Text("Aggiungi", style: TextStyle(color: Colors.red)),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text("Aggiungi"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
                     onPressed: () async {
                       final result = await showDialog<Map<String, dynamic>>(
                         context: context,
@@ -171,7 +208,7 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
                   ),
                 ],
               ),
-              const Divider(),
+              const SizedBox(height: 8),
               Expanded(
                 child: _exercises.isEmpty
                     ? const Center(
@@ -196,9 +233,11 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
                           final ex = _exercises[index];
                           return Card(
                             key: ValueKey(ex.id + index.toString()),
+                            color: const Color(0xFFF6F5F8),
+                            elevation: 0,
                             margin: const EdgeInsets.symmetric(vertical: 6),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(16),
                             ),
                             child: Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -311,6 +350,7 @@ class _ExerciseSearchDialogState extends State<ExerciseSearchDialog> {
     final notifier = Provider.of<WorkoutNotifier>(context);
 
     return Dialog(
+      backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         height: MediaQuery.of(context).size.height * 0.7,
@@ -325,7 +365,7 @@ class _ExerciseSearchDialogState extends State<ExerciseSearchDialog> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(Icons.close, color: Colors.black),
                   onPressed: () => Navigator.pop(context),
                 )
               ],
@@ -333,13 +373,19 @@ class _ExerciseSearchDialogState extends State<ExerciseSearchDialog> {
             const SizedBox(height: 8),
             TextField(
               controller: _queryController,
+              cursorColor: Colors.black,
               decoration: InputDecoration(
                 hintText: "Es: Panca piana, Squat, Petto...",
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                prefixIcon: const Icon(Icons.search, color: Colors.black54),
+                filled: true,
+                fillColor: const Color(0xFFF6F5F8),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.red, width: 2),
+                  borderSide: const BorderSide(color: Colors.black, width: 1.5),
                 ),
               ),
               onChanged: (val) => _onSearchChanged(val, notifier),
@@ -347,7 +393,7 @@ class _ExerciseSearchDialogState extends State<ExerciseSearchDialog> {
             const SizedBox(height: 12),
             Expanded(
               child: notifier.isLoading
-                  ? const Center(child: CircularProgressIndicator(color: Colors.red))
+                  ? const Center(child: CircularProgressIndicator(color: Colors.black))
                   : notifier.exerciseSearchResults.isEmpty
                       ? Center(
                           child: Text(
@@ -362,8 +408,15 @@ class _ExerciseSearchDialogState extends State<ExerciseSearchDialog> {
                           itemBuilder: (ctx, idx) {
                             final item = notifier.exerciseSearchResults[idx];
                             return ListTile(
-                              leading: const Icon(Icons.fitness_center, color: Colors.red),
-                              title: Text(item['name'] ?? ""),
+                              leading: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.05),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.fitness_center, color: Colors.black, size: 20),
+                              ),
+                              title: Text(item['name'] ?? "", style: const TextStyle(fontWeight: FontWeight.bold)),
                               subtitle: Text("${item['bodyPart'] ?? ''} • ${item['target'] ?? ''}"),
                               onTap: () {
                                 Navigator.pop(context, item);
@@ -592,16 +645,21 @@ class _SplitSettingsDialogState extends State<SplitSettingsDialog> {
     final notifier = Provider.of<WorkoutNotifier>(context);
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("Pianificazione Split"),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        title: const Text("Pianificazione Split", style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.check, color: Colors.red),
+            icon: const Icon(Icons.check, color: Colors.black),
             onPressed: () async {
               final startMillis = _startDate?.millisecondsSinceEpoch ?? 0;
               final endMillis = _endDate?.millisecondsSinceEpoch ?? 0;
               await notifier.saveSplitPlan(startMillis, endMillis, _splitMap);
               if (mounted) {
+                Provider.of<HomeNotifier>(context, listen: false).loadHomeData();
                 Navigator.pop(context);
               }
             },
@@ -622,6 +680,11 @@ class _SplitSettingsDialogState extends State<SplitSettingsDialog> {
               children: [
                 Expanded(
                   child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black,
+                      side: BorderSide(color: Colors.black.withOpacity(0.2)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
                     onPressed: () async {
                       final picked = await showDatePicker(
                         context: context,
@@ -630,7 +693,7 @@ class _SplitSettingsDialogState extends State<SplitSettingsDialog> {
                         lastDate: DateTime(2030),
                         builder: (ctx, child) => Theme(
                           data: Theme.of(context).copyWith(
-                            colorScheme: const ColorScheme.light(primary: Colors.red),
+                            colorScheme: const ColorScheme.light(primary: Colors.black),
                           ),
                           child: child!,
                         ),
@@ -645,6 +708,11 @@ class _SplitSettingsDialogState extends State<SplitSettingsDialog> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black,
+                      side: BorderSide(color: Colors.black.withOpacity(0.2)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
                     onPressed: () async {
                       final picked = await showDatePicker(
                         context: context,
@@ -653,7 +721,7 @@ class _SplitSettingsDialogState extends State<SplitSettingsDialog> {
                         lastDate: DateTime(2030),
                         builder: (ctx, child) => Theme(
                           data: Theme.of(context).copyWith(
-                            colorScheme: const ColorScheme.light(primary: Colors.red),
+                            colorScheme: const ColorScheme.light(primary: Colors.black),
                           ),
                           child: child!,
                         ),
@@ -674,9 +742,13 @@ class _SplitSettingsDialogState extends State<SplitSettingsDialog> {
             ),
             const SizedBox(height: 8),
             ...List.generate(7, (index) {
-              return Card(
-                margin: const EdgeInsets.symmetric(vertical: 4),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              return Container(
+                margin: const EdgeInsets.symmetric(vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF6F5F8),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.black.withOpacity(0.05), width: 0.5),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   child: Row(
@@ -684,11 +756,15 @@ class _SplitSettingsDialogState extends State<SplitSettingsDialog> {
                     children: [
                       Text(
                         _weekDays[index],
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       DropdownButton<String>(
                         value: _splitMap[index] ?? "Rest",
                         underline: Container(),
+                        iconEnabledColor: Colors.black,
+                        dropdownColor: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w500, fontSize: 16),
                         items: _splitOptions.map((opt) {
                           return DropdownMenuItem(value: opt, child: Text(opt));
                         }).toList(),
@@ -705,41 +781,7 @@ class _SplitSettingsDialogState extends State<SplitSettingsDialog> {
                 ),
               );
             }),
-            if (notifier.splitPlan.overrides.isNotEmpty) ...[
-              const SizedBox(height: 24),
-              const Text(
-                "Override Giornalieri Attivi",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              ...notifier.splitPlan.overrides.entries.map((entry) {
-                final dateParts = entry.key.split("-");
-                final formattedDate = dateParts.length == 3 
-                    ? "${dateParts[2]}/${dateParts[1]}/${dateParts[0]}" 
-                    : entry.key;
 
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  color: Colors.red.shade50,
-                  child: ListTile(
-                    title: Text(formattedDate, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text("Override: ${entry.value}"),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () {
-                        // Find index matching the date
-                        for (int i = 0; i < 7; i++) {
-                          if (notifier.getDateStringForDayIndex(i) == entry.key) {
-                            notifier.clearDailyOverride(i);
-                            break;
-                          }
-                        }
-                      },
-                    ),
-                  ),
-                );
-              }),
-            ]
           ],
         ),
       ),
