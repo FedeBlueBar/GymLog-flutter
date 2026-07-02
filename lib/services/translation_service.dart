@@ -136,7 +136,6 @@ class TranslationService {
       }
     } catch (_) {}
 
-    // Fallback: translate individually
     final futures = uncachedTexts.map((t) => translateText(t, langPair: langPair)).toList();
     final translatedUncached = await Future.wait(futures);
     for (int i = 0; i < translatedUncached.length; i++) {

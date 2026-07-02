@@ -17,7 +17,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Trigger data load on entry
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<HomeNotifier>().loadHomeData();
     });
@@ -48,7 +47,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: 16),
-                          // Custom Header
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -89,7 +87,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(height: 24),
 
-                          // Workout Today Card
                           WorkoutTodayCard(
                             nomeWorkout: homeState.workoutOdierno,
                             hasActiveWorkout: workoutState.activeWorkout != null,
@@ -102,7 +99,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(height: 16),
 
-                          // Row of Stats with IntrinsicHeight to uniform card sizes
                           IntrinsicHeight(
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -136,7 +132,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(height: 16),
 
-                          // Progress Card (Streaks)
                           Card(
                             margin: EdgeInsets.zero,
                             shape: RoundedRectangleBorder(
@@ -161,7 +156,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                     children: [
-                                      // Workout Streak
                                       Column(
                                         children: [
                                           Text(
@@ -182,7 +176,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ),
                                         ],
                                       ),
-                                      // Diet Streak
                                       Column(
                                         children: [
                                           Text(
@@ -211,7 +204,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(height: 16),
 
-                          // Tools Grid
                           ToolsGrid(
                             onAllenamento: () => Navigator.pushNamed(context, '/workout'),
                             onDieta: () => Navigator.pushNamed(context, '/diet'),

@@ -17,11 +17,6 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
   @override
   void initState() {
     super.initState();
-    // Initially we don't know if the user is a PT or not until the notifier loads, 
-    // but the notifier is likely already loaded or loading.
-    // For simplicity, we'll initialize a 4-tab controller. If they are not a PT, 
-    // we just hide the second tab or disable it. A better approach is to build 
-    // the tab controller dynamically when the state is ready.
   }
 
   @override

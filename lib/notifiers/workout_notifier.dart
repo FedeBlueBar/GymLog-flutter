@@ -42,7 +42,6 @@ class WorkoutNotifier extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  // Active workout states
   Workout? _activeWorkout;
   Workout? get activeWorkout => _activeWorkout;
 
@@ -59,7 +58,6 @@ class WorkoutNotifier extends ChangeNotifier {
   int get elapsedSeconds => _elapsedSeconds;
   Timer? _stopwatchTimer;
 
-  // Search states
   List<Map<String, dynamic>> _exerciseSearchResults = [];
   List<Map<String, dynamic>> get exerciseSearchResults => _exerciseSearchResults;
 
@@ -90,9 +88,7 @@ class WorkoutNotifier extends ChangeNotifier {
       _isLoading = true;
       notifyListeners();
 
-      // Subscribe to workouts in realtime
       _workoutsSub = _workoutService.getWorkoutsRealtime(newUid).listen((list) async {
-        // Translate workout exercise names in background
         final List<Workout> translatedList = [];
         for (var workout in list) {
           final names = workout.exercises.map((e) => e.name).toList();
@@ -114,7 +110,6 @@ class WorkoutNotifier extends ChangeNotifier {
         notifyListeners();
       });
 
-      // Subscribe to logs in realtime
       _logsSub = _workoutService.getWorkoutLogsRealtime(newUid).listen((list) async {
         final List<WorkoutLog> translatedList = [];
         for (var log in list) {
@@ -139,7 +134,6 @@ class WorkoutNotifier extends ChangeNotifier {
         notifyListeners();
       });
 
-      // Load split plan
       loadSplitPlan();
     } else {
       _isLoading = false;
@@ -156,8 +150,6 @@ class WorkoutNotifier extends ChangeNotifier {
   }
 
   int _getTodayIndex() {
-    // DateTime.now().weekday is 1 for Mon, 7 for Sun.
-    // Convert to 0 for Mon, 6 for Sun.
     return DateTime.now().weekday - 1;
   }
 
@@ -186,7 +178,6 @@ class WorkoutNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Split plan management
   Future<void> loadSplitPlan() async {
     final uid = _uid;
     if (uid == null || uid.isEmpty) return;
@@ -304,7 +295,6 @@ class WorkoutNotifier extends ChangeNotifier {
     return _splitPlan.overrides.containsKey(dateStr);
   }
 
-  // Exercise Search & API
   Future<void> onSearchQueryChange(String query) async {
     _searchQuery = query;
     if (query.trim().length < 2) {
@@ -317,16 +307,13 @@ class WorkoutNotifier extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 1. Try local fitness translations first
       var searchTerms = _translationService.getLocalTranslation(query);
       var results = await _exerciseApiService.searchExercisesByName(searchTerms);
 
-      // 2. Try original query if no results and translation differed
       if (results.isEmpty && searchTerms != query) {
         results = await _exerciseApiService.searchExercisesByName(query);
       }
 
-      // 3. Try MyMemory API translation fallback
       if (results.isEmpty) {
         final translated = await _translationService.translateText(query, langPair: "it|en");
         final cleaned = _translationService.cleanEnglishQuery(translated);
@@ -335,7 +322,6 @@ class WorkoutNotifier extends ChangeNotifier {
         }
       }
 
-      // 4. Translate results names in batch
       final namesToTranslate = results.map((item) => (item['name'] ?? "").toString()).toList();
       final translatedNames = await _translationService.translateTexts(namesToTranslate);
 
@@ -367,7 +353,6 @@ class WorkoutNotifier extends ChangeNotifier {
     }
   }
 
-  // Load details
   Future<void> loadExerciseDetails(Exercise exercise) async {
     _isLoading = true;
     notifyListeners();
@@ -377,7 +362,6 @@ class WorkoutNotifier extends ChangeNotifier {
         if (freshData != null) {
           final englishName = freshData['name']?.toString() ?? "";
           
-          // Futures in parallel
           final youtubeIdFut = _exerciseApiService.searchYoutubeVideo(englishName);
           final translatedNameFut = _translationService.translateText(englishName);
           final translatedBodyPartFut = _translationService.translateText(freshData['bodyPart']?.toString() ?? "");
@@ -430,7 +414,6 @@ class WorkoutNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Workouts Templates CRUD
   Future<void> saveWorkout(String name, List<Exercise> exercises, {String id = "", String splitType = "Rest"}) async {
     final uid = _uid;
     if (uid == null || uid.isEmpty) return;
@@ -491,14 +474,12 @@ class WorkoutNotifier extends ChangeNotifier {
     }
   }
 
-  // Active workout session
   void startWorkout(Workout workout) {
     _activeWorkout = workout;
     _isMinimized = false;
     _elapsedSeconds = 0;
     _activeExercises = workout.exercises.map((e) => e.copyWith()).toList();
 
-    // Initialize checkmarks lists for sets
     _activeSetCheckmarks = _activeExercises.map((ex) {
       final setsCount = int.tryParse(ex.sets) ?? 1;
       return List<bool>.filled(setsCount, false);
@@ -545,7 +526,6 @@ class WorkoutNotifier extends ChangeNotifier {
         weight: weight ?? ex.weight,
       );
 
-      // If sets count changed, resize checkmarks list
       if (sets != null) {
         final newSetsCount = int.tryParse(sets) ?? 1;
         final oldList = _activeSetCheckmarks[exerciseIndex];
@@ -571,7 +551,6 @@ class WorkoutNotifier extends ChangeNotifier {
 
     try {
       final now = DateTime.now();
-      // Adjust completion timestamp relative to selected day of the week to log it properly
       final monday = getCurrentWeekMonday();
       final targetDate = monday.add(Duration(days: _currentDayIndex));
       final targetCal = DateTime(
@@ -594,7 +573,6 @@ class WorkoutNotifier extends ChangeNotifier {
 
       await _workoutService.saveWorkoutLog(log, uid);
 
-      // Reset active states
       _activeWorkout = null;
       _isMinimized = false;
       _activeExercises = [];

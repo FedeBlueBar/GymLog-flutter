@@ -62,7 +62,7 @@ class HomeNotifier extends ChangeNotifier {
         _user = user;
         _pesoAttuale = user.peso > 0.0 ? user.peso : null;
 
-        // 1. Fetch diet goals
+
         int kcalObiettivoVal = 2000;
         final userDoc = await _db.collection('CalendarDiet').doc(uid).get();
         if (userDoc.exists) {
@@ -76,7 +76,7 @@ class HomeNotifier extends ChangeNotifier {
           }
         }
 
-        // 2. Fetch current day's diet
+
         int kcalAssunteVal = 0;
         final now = DateTime.now();
         final docId = "${now.year}_${now.month}_${now.day}";
@@ -95,7 +95,7 @@ class HomeNotifier extends ChangeNotifier {
           kcalAssunteVal = stats.consumedCalories;
         }
 
-        // 3. Fetch workout logs for streak
+
         int streakAttuale = 0;
         final logsSnapshot = await _db
             .collection('workout_logs')
@@ -106,7 +106,7 @@ class HomeNotifier extends ChangeNotifier {
             .toList();
         streakAttuale = _calculateWorkoutStreak(logs);
 
-        // 4. Fetch diet logs for streak
+
         int dietStreakAttuale = 0;
         final dietDaysSnapshot = await _db
             .collection('CalendarDiet')
@@ -138,13 +138,13 @@ class HomeNotifier extends ChangeNotifier {
         }
         dietStreakAttuale = _calculateDietStreak(dietQualifiedDays);
 
-        // Fetch split plan and workouts to determine recommended workout for today
+
         String workoutOdiernoVal = "Nessun allenamento";
         final splitPlanDoc = await _db.collection('user_splits').doc(uid).get();
         String targetSplit = "Rest";
         if (splitPlanDoc.exists) {
           final plan = SplitPlan.fromMap(splitPlanDoc.data()!);
-          final todayIndex = DateTime.now().weekday - 1; // 0..6 (Mon..Sun)
+          final todayIndex = DateTime.now().weekday - 1;
           final now = DateTime.now();
           final dateStr = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
 
@@ -161,7 +161,7 @@ class HomeNotifier extends ChangeNotifier {
             }
           }
         } else {
-          // Fallback to default split plan
+
           final defaultSplit = {
             0: "Push", 1: "Pull", 2: "Rest",
             3: "Legs", 4: "Cardio", 5: "Addome", 6: "Rest"

@@ -8,10 +8,9 @@ import 'package:gymlog_flutter/notifiers/workout_notifier.dart';
 import 'package:gymlog_flutter/notifiers/home_notifier.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Dialog to create or edit a Workout routine template.
 class WorkoutPlanDialog extends StatefulWidget {
   final Workout? workout;
-  final String? clientUid; // Used if PT is assigning to client
+  final String? clientUid;
 
   const WorkoutPlanDialog({super.key, this.workout, this.clientUid});
 
@@ -319,7 +318,6 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
   }
 }
 
-/// Dialog to search Exercises from ExerciseDB in real-time.
 class ExerciseSearchDialog extends StatefulWidget {
   const ExerciseSearchDialog({super.key});
 
@@ -432,7 +430,6 @@ class _ExerciseSearchDialogState extends State<ExerciseSearchDialog> {
   }
 }
 
-/// Dialog to display full details (GIF, muscle mappings, tutorial instructions, YouTube search).
 class ExerciseDetailsDialog extends StatefulWidget {
   final Exercise exercise;
 
@@ -588,7 +585,6 @@ class _ExerciseDetailsDialogState extends State<ExerciseDetailsDialog> {
   }
 }
 
-/// Dialog to modify calendar splits and dates overrides.
 class SplitSettingsDialog extends StatefulWidget {
   const SplitSettingsDialog({super.key});
 

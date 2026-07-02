@@ -34,7 +34,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Consumer<ProfileNotifier>(
       builder: (context, state, child) {
-        // Trigger alerts on message state updates
         if (state.successMessage != null || state.errorMessage != null) {
           final message = state.successMessage ?? state.errorMessage;
           if (message != null && message.trim().isNotEmpty) {
@@ -76,7 +75,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const SizedBox(height: 16),
-                        // Profile Header Photo Box
                         Center(
                           child: Container(
                             width: 96,
@@ -94,7 +92,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        // Username label
                         Center(
                           child: Text(
                             user?.username != null && user!.username.isNotEmpty
@@ -108,7 +105,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        // Full Name label
                         Center(
                           child: Text(
                             fullName.isNotEmpty ? fullName : "",
@@ -133,7 +129,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                         const SizedBox(height: 16),
 
-                        // Section ACCOUNT
                         const SectionHeader(testo: "Account"),
                         ProfileCard(
                           children: [
@@ -292,7 +287,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
 
                         const SizedBox(height: 24),
-                        // Log out red button
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
                           child: ElevatedButton.icon(
@@ -326,7 +320,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // --- Modal Dialog Actions ---
 
   void _openTextEditDialog(String title, String fieldKey, String? initialValue) {
     final controller = TextEditingController(text: initialValue ?? "");

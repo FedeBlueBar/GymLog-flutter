@@ -4,7 +4,6 @@ import '../models/user_model.dart';
 import 'package:provider/provider.dart';
 import '../notifiers/community_notifier.dart';
 
-// --- FRIENDS TAB ---
 class FriendsTab extends StatelessWidget {
   final List<UserModel> friends;
   final Map<String, FriendStats> stats;
@@ -75,7 +74,6 @@ class FriendsTab extends StatelessWidget {
   }
 }
 
-// --- PT CLIENTS TAB ---
 class PtClientsTab extends StatelessWidget {
   final List<UserModel> clients;
   final Map<String, FriendStats> stats;
@@ -164,7 +162,6 @@ class PtClientsTab extends StatelessWidget {
   }
 }
 
-// --- REQUESTS TAB ---
 class RequestsTab extends StatefulWidget {
   final List<IncomingRequestUi> incoming;
   final List<OutgoingRequestUi> outgoing;
@@ -374,7 +371,6 @@ class _RequestsTabState extends State<RequestsTab> {
   }
 }
 
-// --- SEARCH TAB ---
 class SearchTab extends StatelessWidget {
   final String query;
   final Function(String) onQueryChange;

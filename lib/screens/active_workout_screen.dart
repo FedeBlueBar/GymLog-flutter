@@ -104,7 +104,6 @@ class ActiveWorkoutScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 12),
                         const Divider(),
-                        // Header row for inputs
                         const Row(
                           children: [
                             SizedBox(width: 40, child: Text("Set", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),

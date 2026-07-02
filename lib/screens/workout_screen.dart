@@ -228,15 +228,13 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     final selectedDayIndex = notifier.currentDayIndex;
     final splitForDay = notifier.getSplitForDayIndex(selectedDayIndex);
 
-    final todayIndex = DateTime.now().weekday - 1; // 0..6
+    final todayIndex = DateTime.now().weekday - 1;
     final isToday = selectedDayIndex == todayIndex;
 
-    // Filter historical logs completed on this day of the week
     final filteredLogs = notifier.workoutLogs.where((log) {
       return _isLogOnDayOfWeek(log.completedAt, selectedDayIndex, notifier);
     }).toList();
 
-    // Workouts suggested for the current selected day split
     final suggestedWorkouts = notifier.workouts.where((w) {
       return w.splitType.toLowerCase() == splitForDay.toLowerCase();
     }).toList();
@@ -272,7 +270,6 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         children: [
           Column(
             children: [
-              // WeekDays Selector Row - Equal width day columns (Row with Expandeds)
               Container(
                 color: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
@@ -371,7 +368,6 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 ),
               ),
 
-              // Split Info Box
               Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: Card(
@@ -441,7 +437,6 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 ),
               ),
 
-              // Scrollable Lobby
               Expanded(
                 child: notifier.isLoading
                     ? const Center(child: CircularProgressIndicator(color: Colors.red))
@@ -904,14 +899,13 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                             else
                               ...filteredLogs.map((log) => _buildWorkoutLogCard(log)),
                           ],
-                          const SizedBox(height: 80), // extra padding for floating active reminder card
+                          const SizedBox(height: 80),
                         ],
                       ),
               )
             ],
           ),
 
-          // Floating Minimized Active Workout Reminder Card
           if (notifier.activeWorkout != null && notifier.isMinimized)
             Positioned(
               left: 16,

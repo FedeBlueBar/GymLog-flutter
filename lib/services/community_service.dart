@@ -21,7 +21,6 @@ class CommunityService {
 
   String _ptRelationshipId(String ptId, String clientId) => '${ptId}_$clientId';
 
-  // Observe Friendships
   Stream<List<Friendship>> observeFriendships() {
     final uid = _currentUid;
     if (uid == null) return Stream.value([]);
@@ -36,7 +35,6 @@ class CommunityService {
     });
   }
 
-  // Fetch Friends as Users
   Future<List<UserModel>> fetchFriendsAsUsers() async {
     final uid = _currentUid;
     if (uid == null) throw Exception("Non autenticato");
@@ -58,8 +56,6 @@ class CommunityService {
 
   Future<List<UserModel>> _fetchUsersByIds(List<String> uids) async {
     List<UserModel> users = [];
-    // Firestore whereIn supports up to 10 items. For a robust app, we'd chunk this.
-    // For simplicity, we chunk by 10.
     for (var i = 0; i < uids.length; i += 10) {
       final chunk = uids.sublist(i, i + 10 > uids.length ? uids.length : i + 10);
       final snapshot = await _usersCol.where(FieldPath.documentId, whereIn: chunk).get();
@@ -74,7 +70,6 @@ class CommunityService {
     await _friendshipsCol.doc(_friendshipId(uid, friendUid)).delete();
   }
 
-  // Observe Incoming Requests
   Stream<List<FriendRequest>> observeIncomingRequests() {
     final uid = _currentUid;
     if (uid == null) return Stream.value([]);
@@ -92,7 +87,6 @@ class CommunityService {
     });
   }
 
-  // Observe Outgoing Requests
   Stream<List<FriendRequest>> observeOutgoingRequests() {
     final uid = _currentUid;
     if (uid == null) return Stream.value([]);
@@ -181,7 +175,6 @@ class CommunityService {
 
     final req = FriendRequest.fromMap(doc.data() as Map<String, dynamic>, doc.id);
     
-    // Create relationship based on type
     if (req.requestType == FriendRequestType.FRIENDSHIP.name) {
       final friendship = Friendship(
         id: _friendshipId(req.senderId, req.receiverId),
@@ -191,7 +184,7 @@ class CommunityService {
       await _friendshipsCol.doc(friendship.id).set(friendship.toMap());
     } else if (req.requestType == FriendRequestType.PT_COACHING.name) {
       final rel = PtRelationship(
-        id: _ptRelationshipId(req.receiverId, req.senderId), // receiver is PT, sender is client
+        id: _ptRelationshipId(req.receiverId, req.senderId),
         ptId: req.receiverId,
         clientId: req.senderId,
         createdAt: DateTime.now().millisecondsSinceEpoch,
@@ -211,7 +204,6 @@ class CommunityService {
     await _requestsCol.doc(requestId).update({'status': FriendRequestStatus.CANCELLED.name});
   }
 
-  // PT Clients
   Stream<List<PtRelationship>> observePtClients() {
     final uid = _currentUid;
     if (uid == null) return Stream.value([]);
@@ -252,11 +244,8 @@ class CommunityService {
   }
 
   Future<FriendStats> fetchUserStats(String uid) async {
-    // Basic implementation: grab their workouts to count them. 
-    // In a real app, maybe store aggregated stats or just return defaults for now.
     final workoutsSnap = await _usersCol.doc(uid).collection('workouts').get();
     int count = workoutsSnap.docs.length;
-    // Arbitrary logic to simulate level
     int level = (count / 5).floor() + 1; 
     return FriendStats(workoutsCount: count, level: level);
   }
