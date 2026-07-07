@@ -1,15 +1,29 @@
+/// Questo file contiene il modello principale dell'Utente (UserModel).
+/// Centralizza tutti i dati personali, fisici e i ruoli (es. se è un Personal Trainer)
+/// legati all'utente attualmente autenticato o agli utenti esplorati nell'app.
+
+// Modello che definisce l'anagrafica completa e lo stato di un utente.
 class UserModel {
+  // Identificativi e account
   final String uid;
+  final String email;
+  final String username;
+
+  // Dati anagrafici di base
   final String nome;
   final String cognome;
-  final String username;
-  final String email;
   final int annoDiNascita;
+
+  // Dati corporei e obiettivi
   final int altezza;
   final double peso;
   final String obiettivo;
+
+  // Ruoli e stato (Community)
   final bool isPersonalTrainer;
-  final String? hasPersonalTrainer;
+  final String? hasPersonalTrainer; // Salva l'ID del Personal Trainer se l'utente è seguito da uno
+
+  // Sistema e UI
   final String photoUrl;
   final int createdAt;
 
@@ -29,6 +43,9 @@ class UserModel {
     required this.createdAt,
   });
 
+  // Crea un'istanza partendo dai dati estratti dal database (in formato Mappa/JSON).
+  // Richiede il [documentId] (l'ID del documento su Firestore) per assicurarsi che 
+  //l'UID sia sempre valorizzato, anche se non esplicitamente salvato nei campi.
   factory UserModel.fromMap(Map<String, dynamic> map, String documentId) {
     return UserModel(
       uid: map['uid'] ?? documentId,
@@ -47,6 +64,8 @@ class UserModel {
     );
   }
 
+  // Converte l'oggetto in una Mappa (JSON) per permetterne il salvataggio o l'aggiornamento su Firestore.
+  // Presta attenzione a far combaciare i nomi delle variabili con le chiavi storiche del database (es. `personalTrainer`).
   Map<String, dynamic> toMap() {
     return {
       'uid': uid,

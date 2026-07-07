@@ -1,3 +1,7 @@
+// Questo file contiene il Notifier (Controller di stato) per la gestione della Community.
+// Agisce da "ponte" tra l'interfaccia utente (UI) e i servizi backend (CommunityService).
+// Mantiene aggiornato in tempo reale lo stato di amici, richieste e clienti del Personal Trainer.
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/community_models.dart';
@@ -6,27 +10,32 @@ import '../services/community_service.dart';
 import '../services/user_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+// Classe che estende ChangeNotifier per notificare la UI ad ogni cambiamento di stato.
 class CommunityNotifier extends ChangeNotifier {
+  // Servizi per comunicare con Firebase
   final CommunityService _communityService = CommunityService();
   final UserService _userService = UserService();
 
+  // Dati dell'utente attualmente connesso
   UserModel? _currentUser;
   UserModel? get currentUser => _currentUser;
-
   bool get isCurrentUserPt => _currentUser?.isPersonalTrainer == true;
 
+  // Liste degli utenti con cui c'è una relazione consolidata
   List<UserModel> _friends = [];
   List<UserModel> get friends => _friends;
 
   List<UserModel> _ptClients = [];
   List<UserModel> get ptClients => _ptClients;
 
+  // Liste delle richieste (amicizia/PT) in attesa, arricchite con i dati dell'utente per mostrarli nella UI
   List<IncomingRequestUi> _incomingRequests = [];
   List<IncomingRequestUi> get incomingRequests => _incomingRequests;
 
   List<OutgoingRequestUi> _outgoingRequests = [];
   List<OutgoingRequestUi> get outgoingRequests => _outgoingRequests;
 
+  // Stato della funzione di ricerca utenti
   String _searchQuery = '';
   String get searchQuery => _searchQuery;
 
@@ -39,34 +48,41 @@ class CommunityNotifier extends ChangeNotifier {
   bool _isSearching = false;
   bool get isSearching => _isSearching;
 
+  // Gestione messaggi di errore e successo per mostrarli all'utente tramite SnackBar
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
   String? _successMessage;
   String? get successMessage => _successMessage;
 
+  // Mappa delle statistiche (es. allenamenti completati) dei propri amici
   Map<String, FriendStats> _friendStats = {};
   Map<String, FriendStats> get friendStats => _friendStats;
 
+  // Cache interna degli utenti per velocizzare la ricerca
   List<UserModel> _allUsersCache = [];
   bool _hasLoadedUsers = false;
 
+  // Sottoscrizioni agli Stream di Firebase per aggiornamenti in tempo reale
   StreamSubscription? _friendsSub;
   StreamSubscription? _incomingSub;
   StreamSubscription? _outgoingSub;
   StreamSubscription? _clientsSub;
   Timer? _debounce;
 
+  // Al momento della creazione, avvia subito l'inizializzazione dei dati
   CommunityNotifier() {
     _init();
   }
 
+  // Metodo interno di avvio: carica il profilo utente, imposta l'ascolto in tempo reale e prepara la cache
   Future<void> _init() async {
     await _loadCurrentUser();
     _observeAll();
     _loadInitialUsers();
   }
 
+  // Recupera dal database i dati completi dell'utente loggato per sapere se è un PT o un utente standard
   Future<void> _loadCurrentUser() async {
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -80,6 +96,8 @@ class CommunityNotifier extends ChangeNotifier {
     }
   }
 
+  // Si iscrive a diversi "Stream" per ricevere dal database aggiornamenti in tempo reale
+  // (amicizie, richieste in attesa e lista clienti).
   void _observeAll() {
     _friendsSub = _communityService.observeFriendships().listen((_) {
       _refreshFriendsUsers();
@@ -114,6 +132,7 @@ class CommunityNotifier extends ChangeNotifier {
     });
   }
 
+  // Aggiorna la lista degli amici scaricando i dati completi (nome, foto) di ciascuno
   Future<void> _refreshFriendsUsers() async {
     try {
       final users = await _communityService.fetchFriendsAsUsers();
@@ -121,10 +140,10 @@ class CommunityNotifier extends ChangeNotifier {
       notifyListeners();
       _loadStatsFor(users);
     } catch (e) {
-      // Handle error
     }
   }
 
+  // Aggiorna la lista dei clienti del Personal Trainer scaricando i dati completi
   Future<void> _refreshPtClients() async {
     try {
       final users = await _communityService.fetchPtClientsAsUsers();
@@ -132,10 +151,11 @@ class CommunityNotifier extends ChangeNotifier {
       notifyListeners();
       _loadStatsFor(users);
     } catch (e) {
-      // Handle error
     }
   }
 
+  // Metodo di utilità per scaricare in modo asincrono le statistiche (livello, numero allenamenti)
+  // per una lista specifica di utenti (amici o clienti) e aggiornare la mappa interna
   Future<void> _loadStatsFor(List<UserModel> users) async {
     bool updated = false;
     for (var u in users) {
@@ -147,6 +167,8 @@ class CommunityNotifier extends ChangeNotifier {
     if (updated) notifyListeners();
   }
 
+  // Scarica una sola volta TUTTI gli utenti dell'app per popolare una cache locale.
+  // Questo permette alla barra di ricerca di essere istantanea senza fare continue chiamate al server.
   Future<void> _loadInitialUsers() async {
     _isSearching = true;
     notifyListeners();
@@ -163,6 +185,8 @@ class CommunityNotifier extends ChangeNotifier {
     }
   }
 
+  // Gestisce l'inserimento di testo nella barra di ricerca usando un "debounce"
+  // (aspetta 300ms prima di filtrare per evitare calcoli inutili ad ogni singola lettera digitata)
   void onSearchQueryChange(String query) {
     _searchQuery = query;
     notifyListeners();
@@ -173,6 +197,7 @@ class CommunityNotifier extends ChangeNotifier {
     });
   }
 
+  // Filtra la cache locale degli utenti in base a nome, cognome o username inseriti
   void _updateSearchResults() {
     final query = _searchQuery.trim().toLowerCase();
     final currentUid = _currentUser?.uid;
@@ -191,6 +216,10 @@ class CommunityNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Funzione "wrapper" (involucro) per eseguire comandi complessi gestendo automaticamente:
+  // 1. Mostrare/nascondere il caricamento
+  // 2. Impostare un messaggio di successo
+  // 3. Catturare ed esporre eventuali errori
   Future<void> _runOnVm(Future<void> Function() block, String successMsg) async {
     _isLoading = true;
     notifyListeners();
@@ -205,40 +234,49 @@ class CommunityNotifier extends ChangeNotifier {
     }
   }
 
+  // Invia una richiesta di amicizia standard a un altro utente
   Future<void> sendFriendshipRequest(String receiverUid) async {
     await _runOnVm(() => _communityService.sendFriendRequest(receiverUid, FriendRequestType.FRIENDSHIP.name), "Richiesta amicizia inviata");
   }
 
+  // Invia una richiesta di affiancamento da Personal Trainer
   Future<void> sendPtCoachingRequest(String receiverUid) async {
     await _runOnVm(() => _communityService.sendFriendRequest(receiverUid, FriendRequestType.PT_COACHING.name), "Richiesta coaching inviata");
   }
 
+  // Accetta una richiesta (amicizia o coaching) in entrata
   Future<void> acceptRequest(String requestId) async {
     await _runOnVm(() => _communityService.acceptFriendRequest(requestId), "Richiesta accettata");
   }
 
+  // Rifiuta una richiesta in entrata
   Future<void> rejectRequest(String requestId) async {
     await _runOnVm(() => _communityService.rejectFriendRequest(requestId), "Richiesta rifiutata");
   }
 
+  // Annulla una richiesta precedentemente inviata ma non ancora accettata
   Future<void> cancelRequest(String requestId) async {
     await _runOnVm(() => _communityService.cancelFriendRequest(requestId), "Richiesta annullata");
   }
 
+  // Rimuove un amico consolidato dalla propria lista
   Future<void> removeFriend(String friendUid) async {
     await _runOnVm(() => _communityService.removeFriend(friendUid), "Amicizia rimossa");
   }
 
+  // Rimuove un cliente dalla lista di coaching di un Personal Trainer
   Future<void> removePtClient(String clientUid) async {
     await _runOnVm(() => _communityService.removePtClient(clientUid), "Cliente rimosso");
   }
 
+  // Pulisce i messaggi temporanei per evitare che vecchi popup riappaiano
   void clearMessages() {
     _errorMessage = null;
     _successMessage = null;
     notifyListeners();
   }
 
+  // Chiude tutte le connessioni in tempo reale al database per evitare sprechi di memoria
   @override
   void dispose() {
     _friendsSub?.cancel();

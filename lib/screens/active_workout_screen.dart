@@ -4,9 +4,13 @@ import 'package:provider/provider.dart';
 import 'package:gymlog_flutter/notifiers/workout_notifier.dart';
 import 'package:gymlog_flutter/widgets/workout_dialogs.dart';
 
+// Schermata che viene mostrata quando l'utente avvia un allenamento.
+// Mostra la lista degli esercizi, permette di spuntare i set completati,
+// modificare pesi/ripetizioni "in corso d'opera" e monitorare il tempo trascorso.
 class ActiveWorkoutScreen extends StatelessWidget {
   const ActiveWorkoutScreen({super.key});
 
+  // Formatta i secondi totali in una stringa leggibile (MM:SS o HH:MM:SS)
   String _formatDuration(int seconds) {
     final h = seconds ~/ 3600;
     final m = (seconds % 3600) ~/ 60;
@@ -19,20 +23,24 @@ class ActiveWorkoutScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Ottiene il riferimento al WorkoutNotifier per leggere lo stato e i dati correnti
     final notifier = Provider.of<WorkoutNotifier>(context);
     final workout = notifier.activeWorkout;
 
+    // Se non c'è nessun allenamento in corso (es. errore o cancellazione), mostra un messaggio
     if (workout == null) {
       return const Scaffold(
         body: Center(child: Text("Nessun allenamento attivo.")),
       );
     }
 
+    // Struttura principale della schermata dell'allenamento
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () {
+            // Se si torna indietro, l'allenamento non si cancella ma viene ridotto a icona (minimized)
             notifier.setWorkoutMinimized(true);
             Navigator.pop(context);
           },
@@ -44,6 +52,7 @@ class ActiveWorkoutScreen extends StatelessWidget {
             padding: const EdgeInsets.only(right: 16.0),
             child: Center(
               child: Text(
+                // Mostra il cronometro aggiornato in tempo reale
                 "Timer: ${_formatDuration(notifier.elapsedSeconds)}",
                 style: const TextStyle(fontSize: 14, color: Colors.redAccent, fontWeight: FontWeight.bold),
               ),
@@ -54,6 +63,7 @@ class ActiveWorkoutScreen extends StatelessWidget {
       body: Column(
         children: [
           Expanded(
+            // Lista scrollabile che contiene tutti gli esercizi previsti nella scheda
             child: ListView.builder(
               padding: const EdgeInsets.all(12),
               itemCount: notifier.activeExercises.length,
@@ -62,6 +72,7 @@ class ActiveWorkoutScreen extends StatelessWidget {
                 final checkmarks = notifier.activeSetCheckmarks[exIdx];
                 final targetSetsCount = int.tryParse(ex.sets) ?? 1;
 
+                // Card che rappresenta un singolo esercizio
                 return Card(
                   margin: const EdgeInsets.symmetric(vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -78,6 +89,7 @@ class ActiveWorkoutScreen extends StatelessWidget {
                           children: [
                             Expanded(
                               child: InkWell(
+                                // Cliccando sul nome dell'esercizio si apre un popup con i dettagli e le istruzioni
                                 onTap: () {
                                   showDialog(
                                     context: context,
@@ -104,6 +116,7 @@ class ActiveWorkoutScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 12),
                         const Divider(),
+                        // Intestazione tabella dei Set
                         const Row(
                           children: [
                             SizedBox(width: 40, child: Text("Set", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
@@ -114,6 +127,7 @@ class ActiveWorkoutScreen extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 8),
+                        // Genera dinamicamente le righe in base al numero di set configurati
                         ...List.generate(checkmarks.length, (setIdx) {
                           final isChecked = checkmarks[setIdx];
 
@@ -142,6 +156,7 @@ class ActiveWorkoutScreen extends StatelessWidget {
                                     child: SizedBox(
                                       height: 36,
                                       child: TextFormField(
+                                        // Campo testuale per le ripetizioni. Modificabile dall'utente durante l'allenamento.
                                         initialValue: ex.reps,
                                         keyboardType: TextInputType.text,
                                         decoration: const InputDecoration(
@@ -160,6 +175,7 @@ class ActiveWorkoutScreen extends StatelessWidget {
                                     child: SizedBox(
                                       height: 36,
                                       child: TextFormField(
+                                        // Campo testuale per il peso. Modificabile dall'utente.
                                         initialValue: ex.weight,
                                         keyboardType: TextInputType.text,
                                         decoration: const InputDecoration(
@@ -178,6 +194,7 @@ class ActiveWorkoutScreen extends StatelessWidget {
                                     child: Align(
                                       alignment: Alignment.centerRight,
                                       child: Checkbox(
+                                        // Casella per spuntare il Set come "Completato"
                                         value: isChecked,
                                         activeColor: Colors.green,
                                         onChanged: (val) {
@@ -191,6 +208,7 @@ class ActiveWorkoutScreen extends StatelessWidget {
                             ),
                           );
                         }),
+                        // Bottoni per aggiungere o rimuovere set all'esercizio in tempo reale
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
@@ -220,6 +238,7 @@ class ActiveWorkoutScreen extends StatelessWidget {
               },
             ),
           ),
+          // Barra inferiore con le azioni globali dell'allenamento (Annulla o Termina)
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -243,6 +262,7 @@ class ActiveWorkoutScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                     onPressed: () {
+                      // Finestra di conferma per cancellare definitivamente la sessione attiva
                       showDialog(
                         context: context,
                         builder: (ctx) => AlertDialog(
@@ -274,6 +294,7 @@ class ActiveWorkoutScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                     onPressed: () async {
+                      // Termina l'allenamento, salva il registro nel database e chiude la schermata
                       await notifier.completeWorkout();
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(

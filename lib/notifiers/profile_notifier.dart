@@ -1,18 +1,26 @@
+// Questo file contiene il Notifier (Controller di stato) per la gestione del Profilo Utente.
+// Permette di leggere, modificare e salvare i dati personali dell'utente (come peso, altezza, obiettivi)
+// comunicando con il database e aggiornando la schermata in tempo reale.
+
 import 'package:flutter/foundation.dart';
 import 'package:gymlog_flutter/models/user_model.dart';
 import 'package:gymlog_flutter/services/auth_service.dart';
 import 'package:gymlog_flutter/services/user_service.dart';
 
+// Classe che estende ChangeNotifier per gestire lo stato della schermata Profilo.
 class ProfileNotifier extends ChangeNotifier {
+  // Dipendenze: servizi per leggere/scrivere i dati sul database e ottenere l'ID utente
   final AuthService _authService;
   final UserService _userService;
 
-  UserModel? _user;
-  bool _isLoading = false;
-  bool _isSaving = false;
-  String? _errorMessage;
-  String? _successMessage;
+  // Stato interno: memorizza l'utente corrente e i flag per la UI
+  UserModel? _user;           // Dati completi dell'utente loggato
+  bool _isLoading = false;    // Indica se l'app sta scaricando il profilo (visualizza rotella di caricamento)
+  bool _isSaving = false;     // Indica se l'app sta salvando una modifica
+  String? _errorMessage;      // Messaggio di errore testuale da mostrare
+  String? _successMessage;    // Messaggio di successo (es. "Profilo aggiornato")
 
+  // Costruttore: carica in automatico i dati del profilo alla creazione
   ProfileNotifier({
     required AuthService authService,
     required UserService userService,
@@ -55,6 +63,8 @@ class ProfileNotifier extends ChangeNotifier {
     }
   }
 
+  // Metodo generico per aggiornare un singolo campo del profilo sul database.
+  // Include un controllo speciale per lo 'username' per assicurarsi che non sia già utilizzato da altri.
   Future<void> updateField(String fieldKey, dynamic value) async {
     final uid = _authService.currentUserId;
     if (uid == null) {
@@ -98,6 +108,8 @@ class ProfileNotifier extends ChangeNotifier {
     }
   }
 
+  // Permette di cambiare la password (valido solo per login tramite Email/Password).
+  // Richiede la password vecchia per ri-autenticare l'utente prima del cambio per motivi di sicurezza.
   Future<void> changePassword(String oldPassword, String newPassword) async {
     if (newPassword.length < 6) {
       _errorMessage = "La nuova password deve avere almeno 6 caratteri";
@@ -111,9 +123,7 @@ class ProfileNotifier extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Reauthenticate first
       await _authService.reauthenticate(oldPassword);
-      // Change password
       await _authService.changePassword(newPassword);
       _successMessage = "Password aggiornata";
     } catch (e) {
@@ -124,6 +134,7 @@ class ProfileNotifier extends ChangeNotifier {
     }
   }
 
+  // Invia un'email standard all'utente per il ripristino della password
   Future<void> sendResetPasswordEmail() async {
     final email = _user?.email;
     if (email == null || email.trim().isEmpty) {
@@ -148,6 +159,8 @@ class ProfileNotifier extends ChangeNotifier {
     }
   }
 
+  // Elimina in modo irreversibile l'account utente sia dal database Firestore sia da Firebase Auth.
+  // Anche qui è richiesta la password per sicurezza.
   Future<void> deleteAccount(String password, VoidCallback onSuccess) async {
     final uid = _authService.currentUserId;
     if (uid == null) {
@@ -161,14 +174,11 @@ class ProfileNotifier extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 1. Reauthenticate first
       await _authService.reauthenticate(password);
 
-      // 2. Delete Firestore record and username index
       final username = _user?.username;
       await _userService.deleteUserDocument(uid, username);
 
-      // 3. Delete Firebase Auth account
       await _authService.deleteAccount();
 
       _successMessage = "Account eliminato";
@@ -181,6 +191,7 @@ class ProfileNotifier extends ChangeNotifier {
     }
   }
 
+  // Disconnette l'utente e lo rimanda alla schermata di accesso
   void logout() {
     _authService.logout();
   }

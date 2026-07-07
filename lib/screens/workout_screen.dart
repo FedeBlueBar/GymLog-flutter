@@ -6,6 +6,12 @@ import 'package:gymlog_flutter/notifiers/home_notifier.dart';
 import 'package:gymlog_flutter/widgets/workout_dialogs.dart';
 import 'package:gymlog_flutter/screens/active_workout_screen.dart';
 
+// Schermata Principale della sezione "Allenamento".
+// Mostra il calendario della settimana (Lunedì-Domenica) con il gruppo muscolare (Split) di ogni giorno.
+// Permette di:
+// 1. Vedere lo storico degli allenamenti passati.
+// 2. Creare, modificare ed eliminare schede di allenamento personalizzate.
+// 3. Avviare un allenamento odierno (creando una sessione attiva).
 class WorkoutScreen extends StatefulWidget {
   const WorkoutScreen({super.key});
 
@@ -16,6 +22,7 @@ class WorkoutScreen extends StatefulWidget {
 class _WorkoutScreenState extends State<WorkoutScreen> {
   int _selectedSuggestedIndex = 0;
 
+  // Controlla se un log di allenamento (timestamp) appartiene a uno specifico giorno della settimana corrente
   bool _isLogOnDayOfWeek(int logTimestamp, int dayIndex, WorkoutNotifier notifier) {
     final logDate = DateTime.fromMillisecondsSinceEpoch(logTimestamp);
     final monday = notifier.getCurrentWeekMonday();
@@ -25,6 +32,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         logDate.day == targetDate.day;
   }
 
+  // Verifica se il timestamp dell'allenamento corrisponde esattamente alla data passata in input
   bool _isLogOnSpecificDate(int logTimestamp, DateTime date) {
     final logDate = DateTime.fromMillisecondsSinceEpoch(logTimestamp);
     return logDate.year == date.year &&
@@ -32,7 +40,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         logDate.day == date.day;
   }
 
+  // Crea il widget (una Card) per mostrare i dettagli di un allenamento terminato (Log)
+  // Include nome della scheda, orario di completamento e una lista di esercizi eseguiti (serie, ripetizioni, peso).
   Widget _buildWorkoutLogCard(dynamic log) {
+    // Estrapola data e ora dal timestamp di completamento
     final date = DateTime.fromMillisecondsSinceEpoch(log.completedAt);
     final timeString = "${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
 
@@ -49,6 +60,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Linea verde decorativa sul lato sinistro della card
             Container(
               width: 5,
               color: const Color(0xFF4CAF50),
@@ -59,6 +71,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Intestazione: Nome dell'allenamento e badge orario
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -68,6 +81,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                           ),
                         ),
+                        // Badge "Completato ore HH:MM"
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
@@ -92,14 +106,19 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
+                    // Generazione dinamica della lista degli esercizi completati
                     ...log.exercises.map((ex) {
+                      // Parificazione dei dati: assicura che valori nulli o vuoti siano mostrati come "0"
                       final setsCount = int.tryParse(ex.sets.toString()) ?? 0;
                       final repsText = ex.reps.toString().isEmpty ? "0" : ex.reps;
                       final weightText = ex.weight.toString().isEmpty ? "0" : ex.weight;
+                      
+                      // Costruisce la stringa riassuntiva (es. "3 set • 10 rep @ 50 kg")
                       final detailsSummary = setsCount > 0 
                           ? "$setsCount set • $repsText rep @ $weightText kg" 
                           : "${ex.sets} set • ${ex.reps} rep @ ${ex.weight} kg";
 
+                      // Container singolo per ogni esercizio
                       return Container(
                         margin: const EdgeInsets.only(bottom: 6),
                         padding: const EdgeInsets.all(10),
@@ -142,6 +161,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     );
   }
 
+  // Associa un colore di sfondo e del testo in base alla tipologia di split (es. Push, Pull, Legs)
   Map<String, Color> _getSplitColors(String splitType) {
     switch (splitType.toLowerCase().trim()) {
       case "push": return {"bg": const Color(0xFFFFF0E6), "text": const Color(0xFFFF6D00)}!;
@@ -157,6 +177,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     }
   }
 
+  // Converte un ammontare di secondi nel formato HH:MM:SS oppure MM:SS
   String _formatDuration(int seconds) {
     final h = seconds ~/ 3600;
     final m = (seconds % 3600) ~/ 60;
@@ -167,12 +188,15 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     return "${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}";
   }
 
+  // Apre un calendario popup per cercare gli allenamenti svolti in una data specifica passata
   void _showDatePickerHistory(BuildContext context, WorkoutNotifier notifier) async {
+    // Richiama il widget di sistema per la selezione della data
     final picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
+      // Personalizza i colori del calendario
       builder: (ctx, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: const ColorScheme.light(primary: Colors.black),
@@ -181,19 +205,23 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       ),
     );
 
+    // Se l'utente ha selezionato una data valida
     if (picked != null) {
+      // Filtra i log in base alla data scelta
       final logsForDate = notifier.workoutLogs.where((log) {
         return _isLogOnSpecificDate(log.completedAt, picked);
       }).toList();
 
       final formattedDate = "${picked.day}/${picked.month}/${picked.year}";
 
+      // Mostra una finestra di dialogo (AlertDialog) con i risultati trovati
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
           title: Text("Allenamenti del $formattedDate", style: const TextStyle(fontWeight: FontWeight.bold)),
           content: SizedBox(
             width: double.maxFinite,
+            // Se non ci sono log, mostra un messaggio di avviso
             child: logsForDate.isEmpty
                 ? const Padding(
                     padding: EdgeInsets.symmetric(vertical: 24.0),
@@ -203,6 +231,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                       style: TextStyle(color: Colors.grey),
                     ),
                   )
+                // Se ci sono log, li mostra utilizzando il costruttore _buildWorkoutLogCard
                 : ListView.builder(
                     shrinkWrap: true,
                     itemCount: logsForDate.length,
@@ -225,16 +254,21 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   @override
   Widget build(BuildContext context) {
     final notifier = Provider.of<WorkoutNotifier>(context);
+    
+    // Giorno attualmente visualizzato nella UI (es. 0 = Lunedì, 1 = Martedì)
     final selectedDayIndex = notifier.currentDayIndex;
     final splitForDay = notifier.getSplitForDayIndex(selectedDayIndex);
 
+    // Indice del giorno reale di oggi (0-6)
     final todayIndex = DateTime.now().weekday - 1;
     final isToday = selectedDayIndex == todayIndex;
 
+    // Filtra lo storico degli allenamenti per mostrare solo quelli completati nel giorno selezionato
     final filteredLogs = notifier.workoutLogs.where((log) {
       return _isLogOnDayOfWeek(log.completedAt, selectedDayIndex, notifier);
     }).toList();
 
+    // Filtra le schede suggerite o salvate che corrispondono al gruppo muscolare (Split) di oggi
     final suggestedWorkouts = notifier.workouts.where((w) {
       return w.splitType.toLowerCase() == splitForDay.toLowerCase();
     }).toList();
@@ -270,17 +304,23 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         children: [
           Column(
             children: [
+              // ---------------------------------------------------------
+              // 1. HEADER SETTIMANA: Mostra i giorni (Lun-Dom) cliccabili
+              // ---------------------------------------------------------
               Container(
                 color: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                // Genera 7 widget cliccabili per i giorni della settimana
                 child: Row(
                   children: List.generate(7, (index) {
                     final isSelected = selectedDayIndex == index;
                     final splitText = notifier.getSplitForDayIndex(index);
+                    // Controlla se l'utente si è allenato in questo specifico giorno
                     final hasLog = notifier.workoutLogs.any(
                       (log) => _isLogOnDayOfWeek(log.completedAt, index, notifier),
                     );
 
+                    // Formatta l'abbreviazione del tipo di allenamento da visualizzare sotto il giorno
                     String splitAbbrev = splitText;
                     switch (splitText.toLowerCase()) {
                       case "push":
@@ -310,9 +350,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                         }
                     }
 
+                    // Singolo pulsante (Card) per giorno della settimana
                     return Expanded(
                       child: GestureDetector(
                         onTap: () {
+                          // Resetta l'indice suggerito quando si cambia giorno
                           setState(() {
                             _selectedSuggestedIndex = 0;
                           });
@@ -324,12 +366,14 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
+                          // Colore invertito se il giorno è selezionato
                           color: isSelected ? Colors.black : const Color(0xFFF6F5F8),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 2.0),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
+                                // Nome abbreviato del giorno (es. Lun, Mar)
                                 Text(
                                   weekDaysNames[index],
                                   style: TextStyle(
@@ -339,6 +383,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 2),
+                                // Tipo di split previsto (es. Push, Rest)
                                 Text(
                                   splitAbbrev,
                                   style: TextStyle(
@@ -350,6 +395,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 4),
+                                // Puntino verde che segnala la presenza di un allenamento terminato
                                 Container(
                                   width: 6,
                                   height: 6,
@@ -368,6 +414,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 ),
               ),
 
+              // ---------------------------------------------------------
+              // 2. BANNER GIORNO: Mostra lo split del giorno (es. "Push")
+              //    e permette di cambiarlo al volo (Menu a tendina)
+              // ---------------------------------------------------------
               Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: Card(
@@ -399,18 +449,21 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                         ),
                         Row(
                           children: [
-
+                            // Pulsante con menu a tendina per cambiare lo split previsto del giorno
                             PopupMenuButton<String>(
                               icon: const Icon(Icons.edit, color: Colors.black),
                               color: Colors.white,
                               surfaceTintColor: Colors.transparent,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               onSelected: (val) async {
+                                // Salva l'override giornaliero (es. cambia Push in Rest)
                                 await notifier.saveDailyOverride(selectedDayIndex, val);
+                                // Forza il ricaricamento nella HomeNotifier per allineare i dati
                                 if (context.mounted) {
                                   Provider.of<HomeNotifier>(context, listen: false).loadHomeData();
                                 }
                               },
+                              // Genera le opzioni selezionabili nel menu
                               itemBuilder: (ctx) => [
                                 "Push",
                                 "Pull",
@@ -437,6 +490,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 ),
               ),
 
+              // ---------------------------------------------------------
+              // 3. CORPO DELLA SCHERMATA:
+              //    - Se giorno PASSATO: solo storico
+              //    - Se OGGI/FUTURO: scheda suggerita, elenco schede, storico di oggi
+              // ---------------------------------------------------------
               Expanded(
                 child: notifier.isLoading
                     ? const Center(child: CircularProgressIndicator(color: Colors.red))
@@ -472,6 +530,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                           ] else ...[
                             // OGGI O FUTURO: Suggerito / Riposo e Schede disponibili
                             if (splitForDay.toLowerCase() == "rest")
+                              // Mostra un banner speciale se lo split di oggi è "Rest"
                               Card(
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
@@ -506,8 +565,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                 ),
                               )
                             else if (suggestedWorkouts.isNotEmpty) ...[
-                              // Renders SUGGERITO PER OGGI Card
+                              // Mostra la scheda raccomandata per oggi in base allo split configurato (se presente)
                               Builder(builder: (context) {
+                                // Evita errori fuori dai limiti se si ricarica la lista schede
                                 if (_selectedSuggestedIndex >= suggestedWorkouts.length) {
                                   _selectedSuggestedIndex = 0;
                                 }
@@ -523,6 +583,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
+                                        // Intestazione Card Suggerita
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
@@ -554,6 +615,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                           ],
                                         ),
                                         const SizedBox(height: 12),
+                                        // Genera i "chip" orizzontali per scorrere tra le varie schede suggerite, se ci sono più opzioni
                                         if (suggestedWorkouts.length > 1) ...[
                                           SingleChildScrollView(
                                             scrollDirection: Axis.horizontal,
@@ -582,6 +644,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                           ),
                                           const SizedBox(height: 8),
                                         ],
+                                        // Dettagli scheda suggerita: Nome, Numero esercizi e Split type
                                         Text(
                                           suggested.name,
                                           style: const TextStyle(
@@ -621,6 +684,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                         const SizedBox(height: 12),
                                         const Divider(),
                                         const SizedBox(height: 8),
+                                        // Elenco dei primi 3 esercizi della scheda
                                         ...suggested.exercises.take(3).map((ex) {
                                           return Padding(
                                             padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -639,6 +703,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                             ),
                                           );
                                         }),
+                                        // Mostra il conteggio degli esercizi rimanenti
                                         if (suggested.exercises.length > 3)
                                           Padding(
                                             padding: const EdgeInsets.only(left: 24.0, top: 4.0),
@@ -647,6 +712,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                               style: TextStyle(color: Colors.black.withOpacity(0.7), fontSize: 12),
                                             ),
                                           ),
+                                        // Pulsante "AVVIA ALLENAMENTO" (Mostrato solo per il giorno corrente, non per i giorni futuri)
                                         if (isToday) ...[
                                           const SizedBox(height: 16),
                                           ElevatedButton.icon(
@@ -662,15 +728,18 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                               elevation: 0,
                                             ),
                                             onPressed: () {
+                                              // Impedisce di avviare un nuovo allenamento se ne esiste già uno diverso in corso
                                               if (notifier.activeWorkout != null && notifier.activeWorkout?.id != suggested.id) {
                                                 ScaffoldMessenger.of(context).showSnackBar(
                                                   const SnackBar(content: Text("C'è già un allenamento in corso! Termina o annulla quello prima.")),
                                                 );
                                                 return;
                                               }
+                                              // Avvia l'allenamento (creando ActiveWorkout state)
                                               if (notifier.activeWorkout?.id != suggested.id) {
                                                 notifier.startWorkout(suggested);
                                               }
+                                              // Redirige l'utente verso la schermata dell'allenamento attivo
                                               Navigator.push(
                                                 context,
                                                 MaterialPageRoute(builder: (ctx) => const ActiveWorkoutScreen()),
@@ -686,8 +755,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                             ],
                             const SizedBox(height: 20),
 
-                            // Schede disponibili header
                             const Divider(height: 32),
+                            // Area con bottone per aggiungere nuove schede e lista schede salvate
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -695,6 +764,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                   "Modifica Scheda",
                                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                                 ),
+                                // Bottone per avviare il Dialog di creazione scheda (WorkoutPlanDialog vuoto)
                                 ElevatedButton.icon(
                                   icon: const Icon(Icons.add, color: Colors.white, size: 16),
                                   label: const Text("Crea Scheda", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -714,6 +784,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                               ],
                             ),
                             const SizedBox(height: 16),
+                            // Stato Empty: Mostra un avviso se l'utente non ha alcuna scheda creata
                             if (notifier.workouts.isEmpty)
                               Card(
                                 color: const Color(0xFFF6F5F8).withOpacity(0.5),
@@ -729,8 +800,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                   ),
                                 ),
                               )
+                            // Genera la lista delle schede salvate dall'utente o dal suo PT
                             else
                               ...notifier.workouts.map((w) {
+                                // Determina se questa scheda è attualmente in corso di esecuzione
                                 final isCurrentActive = notifier.activeWorkout?.id == w.id;
                                 final tagColors = _getSplitColors(w.splitType);
 
@@ -743,6 +816,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                   elevation: 2,
                                   color: Colors.white,
                                   shadowColor: Colors.black.withOpacity(0.2),
+                                  // Naviga alla modifica della scheda al tap dell'intera Card
                                   child: InkWell(
                                     borderRadius: BorderRadius.circular(20),
                                     onTap: () {
@@ -766,6 +840,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                                 const SizedBox(height: 8),
                                                 Row(
                                                   children: [
+                                                    // Badge colorato per lo Split della scheda
                                                     Container(
                                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                                       decoration: BoxDecoration(
@@ -788,6 +863,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                                     ),
                                                   ],
                                                 ),
+                                                // Informazione opzionale: se la scheda è stata inviata da un PT (Comunità)
                                                 if (w.senderName != null && w.senderName!.isNotEmpty)
                                                   Padding(
                                                     padding: const EdgeInsets.only(top: 6.0),
@@ -799,11 +875,13 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                               ],
                                             ),
                                           ),
+                                          // Azioni rapide per la scheda: Modifica, Elimina, Inizia/Riprendi
                                           Column(
                                             crossAxisAlignment: CrossAxisAlignment.end,
                                             children: [
                                               Row(
                                                 children: [
+                                                  // Pulsante Modifica
                                                   IconButton(
                                                     icon: const Icon(Icons.edit, color: Colors.black87, size: 20),
                                                     style: IconButton.styleFrom(
@@ -817,6 +895,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                                       );
                                                     },
                                                   ),
+                                                  // Pulsante Elimina (con Alert di conferma)
                                                   IconButton(
                                                     icon: const Icon(Icons.delete, color: Colors.red, size: 20),
                                                     style: IconButton.styleFrom(
@@ -846,6 +925,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                                 ],
                                               ),
                                               const SizedBox(height: 8),
+                                              // Pulsante INIZIA (colore nero) o RIPRENDI (colore verde, se è la scheda attiva in esecuzione)
                                               ElevatedButton(
                                                 style: ElevatedButton.styleFrom(
                                                   backgroundColor: isCurrentActive ? Colors.green : Colors.black,
@@ -855,15 +935,18 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                                   elevation: 0,
                                                 ),
                                                 onPressed: () {
+                                                  // Previene l'avvio se c'è un'altra scheda in corso
                                                   if (notifier.activeWorkout != null && !isCurrentActive) {
                                                     ScaffoldMessenger.of(context).showSnackBar(
                                                       const SnackBar(content: Text("C'è già un allenamento in corso! Termina o annulla quello prima.")),
                                                     );
                                                     return;
                                                   }
+                                                  // Avvia il workout se non era già attivo
                                                   if (!isCurrentActive) {
                                                     notifier.startWorkout(w);
                                                   }
+                                                  // Porta l'utente nella schermata "Workout in Corso"
                                                   Navigator.push(
                                                     context,
                                                     MaterialPageRoute(builder: (ctx) => const ActiveWorkoutScreen()),
@@ -906,7 +989,12 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             ],
           ),
 
+          // ---------------------------------------------------------
+          // 4. BANNER ALLENAMENTO IN CORSO (Sticky Bottom)
+          //    Compare sopra alla lista se c'è un allenamento avviato e "minimizzato"
+          // ---------------------------------------------------------
           if (notifier.activeWorkout != null && notifier.isMinimized)
+            // Utilizzo di Positioned per ancorare il banner in basso (sticky) sopra la ListView
             Positioned(
               left: 16,
               right: 16,
@@ -914,14 +1002,18 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
               child: Card(
                 color: Colors.white,
                 elevation: 1,
+                // Bordo rosso semitrasparente per attirare l'attenzione sull'allenamento in corso
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                   side: BorderSide(color: Colors.red.withOpacity(0.8), width: 1),
                 ),
+                // L'intera Card è cliccabile per massimizzare la schermata dell'allenamento
                 child: InkWell(
                   borderRadius: BorderRadius.circular(16),
                   onTap: () {
+                    // Ripristina lo stato a "non minimizzato"
                     notifier.setWorkoutMinimized(false);
+                    // Naviga nuovamente all'ActiveWorkoutScreen
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (ctx) => const ActiveWorkoutScreen()),
@@ -935,6 +1027,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                         Expanded(
                           child: Row(
                             children: [
+                              // Pallino rosso decorativo a sinistra (indicatore di registrazione/live)
                               Container(
                                 width: 10,
                                 height: 10,
@@ -944,15 +1037,18 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                                 ),
                               ),
                               const SizedBox(width: 12),
+                              // Testi descrittivi
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    // Titolo in maiuscoletto per indicare lo stato
                                     const Text(
                                       "ALLENAMENTO IN CORSO",
                                       style: TextStyle(color: Colors.red, fontWeight: FontWeight.w900, fontSize: 10, letterSpacing: 1.0),
                                     ),
                                     const SizedBox(height: 2),
+                                    // Nome dell'allenamento attualmente attivo
                                     Text(
                                       notifier.activeWorkout!.name,
                                       style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16),
@@ -965,6 +1061,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                             ],
                           ),
                         ),
+                        // Bottone "RIPRENDI" sulla destra (esegue la stessa azione dell'onTap della Card)
                         TextButton.icon(
                           style: TextButton.styleFrom(foregroundColor: Colors.red, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
                           onPressed: () {

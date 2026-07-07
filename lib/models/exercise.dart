@@ -1,9 +1,21 @@
+// Questo file contiene il modello dati per un singolo Esercizio.
+// Rappresenta le informazioni base di un esercizio (es. nome) e i relativi 
+// parametri di allenamento (serie, ripetizioni, peso), oltre ai dettagli multimediali.
+
+// Modello che definisce le caratteristiche di un esercizio.
+// Usato sia per gli esercizi presenti nelle schede di allenamento, sia come
+// riferimento dalla libreria globale degli esercizi.
 class Exercise {
+  // Identificativo e nome dell'esercizio
   String id;
   String name;
+
+  // Parametri di allenamento (salvati come stringhe per flessibilità di input, es. "3x10" o "Cedimento")
   String sets;
   String reps;
   String weight;
+
+  // Risorse multimediali e dettagli anatomici opzionali
   String? gifUrl;
   List<String> instructions;
   String? bodyPart;
@@ -23,6 +35,8 @@ class Exercise {
     this.youtubeVideoId,
   });
 
+  /// Crea un'istanza partendo dai dati in formato Mappa (JSON / Firestore).
+  // Include una logica per il parsing sicuro della lista di istruzioni.
   factory Exercise.fromMap(Map<String, dynamic> map) {
     List<String> parsedInstructions = [];
     if (map['instructions'] is List) {
@@ -45,6 +59,7 @@ class Exercise {
     );
   }
 
+  /// Converte l'oggetto in una Mappa (JSON) pronta per il salvataggio su database.
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -60,6 +75,9 @@ class Exercise {
     };
   }
 
+  // Restituisce un nuovo oggetto Exercise copiando i dati di quello attuale,
+  // con la possibilità di sovrascrivere solo alcuni parametri specifici.
+  //  (Molto utile per aggiornare lo stato locale senza mutare l'oggetto originale in modo incontrollato).
   Exercise copyWith({
     String? id,
     String? name,

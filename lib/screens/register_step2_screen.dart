@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:gymlog_flutter/notifiers/register_notifier.dart';
 import 'package:gymlog_flutter/widgets/auth_text_field.dart';
 
+// Seconda e ultima fase della registrazione classica.
+// Raccoglie dati di accesso (Username, Password) e parametri fisici (Anno, Altezza, Peso).
 class RegisterStep2Screen extends StatefulWidget {
   const RegisterStep2Screen({super.key});
 
@@ -11,6 +13,7 @@ class RegisterStep2Screen extends StatefulWidget {
 }
 
 class _RegisterStep2ScreenState extends State<RegisterStep2Screen> {
+  // Controller testuali per le informazioni inserite in questo secondo step
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confermaPasswordController = TextEditingController();
@@ -18,6 +21,7 @@ class _RegisterStep2ScreenState extends State<RegisterStep2Screen> {
   final TextEditingController _altezzaController = TextEditingController();
   final TextEditingController _pesoController = TextEditingController();
 
+  // Lista fissa degli obiettivi disponibili
   final List<String> _obiettivi = [
     "Perdita di peso",
     "Aumento massa",
@@ -26,6 +30,8 @@ class _RegisterStep2ScreenState extends State<RegisterStep2Screen> {
     "Forza"
   ];
   String? _selectedObiettivo;
+  
+  // Flag per nascondere o mostrare i campi password
   bool _passwordObscured = true;
   bool _confermaObscured = true;
 
@@ -42,11 +48,14 @@ class _RegisterStep2ScreenState extends State<RegisterStep2Screen> {
 
   @override
   Widget build(BuildContext context) {
+    // Si aggancia allo stesso Notifier dello Step 1 per inviare in un'unica volta tutti i dati raccolti
     final registerNotifier = Provider.of<RegisterNotifier>(context);
 
+    // Controlla dopo ogni rendering se la registrazione completa (su Firebase) è andata a buon fine
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (registerNotifier.isRegisterSuccess) {
         registerNotifier.onRegisterHandled();
+        // Cestina la cronologia (login/registrazione) e va alla Home
         Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
       }
     });
@@ -78,11 +87,14 @@ class _RegisterStep2ScreenState extends State<RegisterStep2Screen> {
                   ),
                 ),
                 const SizedBox(height: 24),
+                
+                // Campo Username
                 AuthTextField(
                   label: "Username",
                   controller: _usernameController,
                 ),
                 const SizedBox(height: 12),
+                // Campo Password (con occhio per mostrare/nascondere il testo)
                 AuthTextField(
                   label: "Password",
                   controller: _passwordController,
@@ -101,6 +113,7 @@ class _RegisterStep2ScreenState extends State<RegisterStep2Screen> {
                   ),
                 ),
                 const SizedBox(height: 12),
+                // Campo Conferma Password (deve coincidere col precedente)
                 AuthTextField(
                   label: "Conferma password",
                   controller: _confermaPasswordController,
@@ -119,6 +132,7 @@ class _RegisterStep2ScreenState extends State<RegisterStep2Screen> {
                   ),
                 ),
                 const SizedBox(height: 12),
+                // Menu a tendina per l'obiettivo di allenamento
                 DropdownButtonFormField<String>(
                   initialValue: _selectedObiettivo,
                   decoration: const InputDecoration(
@@ -153,6 +167,7 @@ class _RegisterStep2ScreenState extends State<RegisterStep2Screen> {
                   },
                 ),
                 const SizedBox(height: 12),
+                // Parametri fisici e anagrafici (numerici)
                 AuthTextField(
                   label: "Anno di nascita",
                   controller: _annoNascitaController,
@@ -171,6 +186,8 @@ class _RegisterStep2ScreenState extends State<RegisterStep2Screen> {
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 ),
                 const SizedBox(height: 12),
+                
+                // Switch per confermare se si è un PT
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -193,6 +210,8 @@ class _RegisterStep2ScreenState extends State<RegisterStep2Screen> {
                     ),
                   ],
                 ),
+                
+                // Visualizzazione degli errori in rosso
                 if (registerNotifier.errorMessage != null) ...[
                   const SizedBox(height: 12),
                   Text(
@@ -205,6 +224,8 @@ class _RegisterStep2ScreenState extends State<RegisterStep2Screen> {
                   ),
                 ],
                 const SizedBox(height: 24),
+                
+                // Bottoni d'azione: "Indietro" per correggere i dati, "Registrati" per completare
                 Row(
                   children: [
                     Expanded(
@@ -229,12 +250,15 @@ class _RegisterStep2ScreenState extends State<RegisterStep2Screen> {
                         onPressed: registerNotifier.isLoading
                             ? null
                             : () {
+                                // Salvataggio dei dati nel Notifier prima dell'invio a Firestore
                                 registerNotifier.onUsernameChange(_usernameController.text);
                                 registerNotifier.onPasswordChange(_passwordController.text);
                                 registerNotifier.onConfermaPasswordChange(_confermaPasswordController.text);
                                 registerNotifier.onAnnoDiNascitaChange(_annoNascitaController.text);
                                 registerNotifier.onAltezzaChange(_altezzaController.text);
                                 registerNotifier.onPesoChange(_pesoController.text);
+                                
+                                // Chiamata al metodo di registrazione effettivo
                                 registerNotifier.register();
                               },
                         style: ElevatedButton.styleFrom(

@@ -1,3 +1,7 @@
+// Questo file contiene il Notifier (Controller di stato) per la schermata principale (Home).
+// Raccoglie e sintetizza i dati essenziali dell'utente (allenamento odierno, calorie, peso e streak)
+// per fornire una panoramica rapida non appena l'app viene aperta.
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:gymlog_flutter/models/daily_diet_stats.dart';
@@ -8,22 +12,30 @@ import 'package:gymlog_flutter/models/split_plan.dart';
 import 'package:gymlog_flutter/services/auth_service.dart';
 import 'package:gymlog_flutter/services/user_service.dart';
 
+// Classe che estende ChangeNotifier per gestire e aggiornare lo stato della Home in tempo reale.
 class HomeNotifier extends ChangeNotifier {
+  // Dipendenze e servizi necessari per leggere i dati
   final AuthService _authService;
   final UserService _userService;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  // Dati sintetici mostrati nella schermata Home
   UserModel? _user;
-  String _workoutOdierno = "Nessun allenamento";
-  double? _pesoAttuale;
-  int _kcalAssunte = 0;
-  int _kcalObiettivo = 2000;
-  int _streakGiorni = 0;
-  int _workoutStreakGiorni = 0;
-  int _dietStreakGiorni = 0;
+  String _workoutOdierno = "Nessun allenamento"; // Nome della scheda prevista per oggi
+  double? _pesoAttuale;                          // Ultimo peso registrato
+  int _kcalAssunte = 0;                          // Calorie consumate nella giornata odierna
+  int _kcalObiettivo = 2000;                     // Calorie target giornaliere
+
+  // Contatori della costanza dell'utente (Streak)
+  int _streakGiorni = 0;                         // Streak globale (giorni consecutivi in cui ci si allena o si rispetta la dieta)
+  int _workoutStreakGiorni = 0;                  // Giorni consecutivi di solo allenamento
+  int _dietStreakGiorni = 0;                     // Giorni consecutivi di tracciamento dieta
+  
+  // Stato del caricamento e gestione errori
   bool _isLoading = false;
   String? _errorMessage;
 
+  // Costruttore: avvia immediatamente il caricamento asincrono dei dati della dashboard
   HomeNotifier({
     required AuthService authService,
     required UserService userService,
@@ -43,6 +55,9 @@ class HomeNotifier extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
+  // Carica ed elabora tutti i dati mostrati nella Home in un'unica chiamata.
+  // Recupera l'ultimo peso attuale, calcola le calorie giornaliere, legge il calendario allenamenti (SplitPlan)
+  // e calcola le streak attuali (giorni consecutivi) per l'utente.
   Future<void> loadHomeData() async {
     final uid = _authService.currentUserId;
     if (uid == null) {
@@ -194,11 +209,15 @@ class HomeNotifier extends ChangeNotifier {
     }
   }
 
+  // Converte un timestamp (millisecondi) in una Data "pulita" (solo Anno, Mese, Giorno),
+  // azzerando ore e minuti. È essenziale per poter fare confronti precisi tra giorni interi nei calcoli di streak.
   DateTime _epochMsToLocalDate(int epochMs) {
     final dt = DateTime.fromMillisecondsSinceEpoch(epochMs);
     return DateTime(dt.year, dt.month, dt.day);
   }
 
+  // Calcola quanti giorni consecutivi l'utente si è allenato (Workout Streak).
+  // La serie è considerata "viva" se l'ultimo allenamento registrato è stato fatto oggi o al massimo ieri.
   int _calculateWorkoutStreak(List<WorkoutLog> workoutLogs) {
     final distinctDates = workoutLogs
         .map((log) => _epochMsToLocalDate(log.completedAt))
@@ -234,6 +253,8 @@ class HomeNotifier extends ChangeNotifier {
     return streak;
   }
 
+  // Calcola quanti giorni consecutivi l'utente ha rispettato la dieta (Diet Streak).
+  // I "qualifiedDays" sono calcolati a monte (es. giorni in cui l'utente ha mangiato e registrato cibi in almeno 3 categorie diverse).
   int _calculateDietStreak(List<DateTime> qualifiedDays) {
     if (qualifiedDays.isEmpty) return 0;
 

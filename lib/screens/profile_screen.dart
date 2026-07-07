@@ -5,6 +5,9 @@ import 'package:gymlog_flutter/notifiers/profile_notifier.dart';
 import 'package:gymlog_flutter/widgets/profile_section.dart';
 import 'package:gymlog_flutter/utils/constants.dart';
 
+// Schermata Profilo.
+// Permette all'utente di visualizzare e modificare i propri dati personali (Nome, Peso, Obiettivo),
+// di gestire l'account (cambio/reset password, eliminazione) e di fare il logout.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -13,6 +16,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  // Appena la pagina si carica, richiede i dati freschi dell'utente a Firestore
   @override
   void initState() {
     super.initState();
@@ -21,6 +25,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
+  // Utility interna per mostrare messaggi (errori o successi) alla base dello schermo
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -32,8 +37,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Il Consumer ascolta il ProfileNotifier e ridisegna la UI ad ogni cambiamento
     return Consumer<ProfileNotifier>(
       builder: (context, state, child) {
+        // Se ci sono messaggi da mostrare (es. "Salvataggio riuscito"), li visualizza in una SnackBar
         if (state.successMessage != null || state.errorMessage != null) {
           final message = state.successMessage ?? state.errorMessage;
           if (message != null && message.trim().isNotEmpty) {
@@ -44,6 +51,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
         }
 
+        // Costruisce il nome completo dell'utente
         final user = state.user;
         final fullName = [user?.nome, user?.cognome]
             .where((name) => name != null && name.trim().isNotEmpty)
@@ -51,6 +59,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         return Scaffold(
           backgroundColor: const Color(0xFFEBEBEB),
+          // Barra superiore standard con pulsante indietro
           appBar: AppBar(
             title: const Text(
               "Profilo",
@@ -65,6 +74,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           body: SafeArea(
+            // Mostra un caricamento se i dati non sono ancora arrivati
             child: state.isLoading
                 ? const Center(
                     child: CircularProgressIndicator(color: Colors.black),
@@ -75,6 +85,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const SizedBox(height: 16),
+                        
+                        // Icona utente circolare e nome
                         Center(
                           child: Container(
                             width: 96,
@@ -114,6 +126,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           ),
                         ),
+                        // Mostra un distintivo speciale se l'utente è un Personal Trainer
                         if (user?.isPersonalTrainer == true) ...[
                           const SizedBox(height: 8),
                           Center(
@@ -129,6 +142,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                         const SizedBox(height: 16),
 
+                        // Blocco delle credenziali di accesso
                         const SectionHeader(testo: "Account"),
                         ProfileCard(
                           children: [
@@ -178,7 +192,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ],
                         ),
 
-                        // Section DATI PERSONALI
+                        // Blocco con i dati modificabili (nome, altezza, peso, ecc.)
                         const SectionHeader(testo: "Dati personali"),
                         ProfileCard(
                           children: [
@@ -286,6 +300,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ],
                         ),
 
+                        // Bottone di Logout a fondo pagina
                         const SizedBox(height: 24),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -320,7 +335,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // =========================================================================
+  // METODI PER APRIRE I VARI DIALOGHI (POPUP) DI MODIFICA
+  // =========================================================================
 
+  // Apre un popup contenente un semplice campo di testo libero (usato per Nome e Cognome)
   void _openTextEditDialog(String title, String fieldKey, String? initialValue) {
     final controller = TextEditingController(text: initialValue ?? "");
     showDialog(
@@ -374,6 +393,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // Apre un popup contenente un campo di testo limitato ai soli numeri (o decimali).
+  // Usato per modificare Età, Altezza e Peso.
   void _openNumberEditDialog(
     String title,
     String fieldKey,
@@ -445,6 +466,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // Apre un popup con una lista di opzioni a scelta multipla (Radio Button).
+  // Usato per modificare l'Obiettivo (es. "Dimagrimento", "Massa").
   void _openDropdownEditDialog(
     String title,
     String fieldKey,
@@ -510,6 +533,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // Apre un popup contenente uno switch on/off.
+  // Usato per attivare/disattivare il flag "Sono un Personal Trainer".
   void _openSwitchEditDialog(String title, String fieldKey, bool initialValue) {
     bool checked = initialValue;
     showDialog(
@@ -562,6 +587,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // Apre il popup dedicato in cui l'utente deve inserire la vecchia password
+  // e quella nuova (ripetuta per sicurezza) per aggiornare le credenziali su Auth.
   void _openChangePasswordDialog() {
     final oldController = TextEditingController();
     final newController = TextEditingController();
@@ -658,6 +685,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // Chiede conferma e, in caso positivo, invia la mail di reset della password fornita da Firebase Auth
   void _openResetPasswordDialog(String? email) {
     showDialog(
       context: context,
@@ -690,6 +718,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // Avvia il delicato processo di cancellazione irreversibile dell'account.
+  // Richiede che l'utente inserisca nuovamente la password per questioni di sicurezza.
   void _openDeleteAccountDialog() {
     final passwordController = TextEditingController();
 

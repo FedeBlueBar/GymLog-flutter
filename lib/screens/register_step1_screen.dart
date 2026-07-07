@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:gymlog_flutter/notifiers/register_notifier.dart';
 import 'package:gymlog_flutter/widgets/auth_text_field.dart';
 
+// Prima fase della registrazione classica (con email).
+// Raccoglie i Dati Personali di base: Nome, Cognome ed Email.
 class RegisterStep1Screen extends StatefulWidget {
   const RegisterStep1Screen({super.key});
 
@@ -11,10 +13,12 @@ class RegisterStep1Screen extends StatefulWidget {
 }
 
 class _RegisterStep1ScreenState extends State<RegisterStep1Screen> {
+  // Controller per catturare in tempo reale l'input inserito dall'utente nei campi
   final TextEditingController _nomeController = TextEditingController();
   final TextEditingController _cognomeController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
 
+  // Quando l'utente esce dalla pagina, distrugge i controller per liberare RAM
   @override
   void dispose() {
     _nomeController.dispose();
@@ -25,6 +29,7 @@ class _RegisterStep1ScreenState extends State<RegisterStep1Screen> {
 
   @override
   Widget build(BuildContext context) {
+    // Si aggancia al Notifier per conservare i dati man mano che si avanza nei vari "Step"
     final registerNotifier = Provider.of<RegisterNotifier>(context);
 
     return Scaffold(
@@ -54,21 +59,27 @@ class _RegisterStep1ScreenState extends State<RegisterStep1Screen> {
                   ),
                 ),
                 const SizedBox(height: 32),
+                // Campo Nome
                 AuthTextField(
                   label: "Nome",
                   controller: _nomeController,
                 ),
                 const SizedBox(height: 12),
+                
+                // Campo Cognome
                 AuthTextField(
                   label: "Cognome",
                   controller: _cognomeController,
                 ),
                 const SizedBox(height: 12),
+                
+                // Campo Email
                 AuthTextField(
                   label: "Email",
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                 ),
+                // Area dove compaiono eventuali errori (es. "Email non valida")
                 if (registerNotifier.errorMessage != null) ...[
                   const SizedBox(height: 12),
                   Text(
@@ -81,12 +92,16 @@ class _RegisterStep1ScreenState extends State<RegisterStep1Screen> {
                   ),
                 ],
                 const SizedBox(height: 24),
+                
+                // Pulsante per passare allo Step 2 (Dati Sensibili e Account)
                 ElevatedButton(
                   onPressed: () {
+                    // 1. Salva i dati inseriti nel Notifier "centrale"
                     registerNotifier.onNomeChange(_nomeController.text);
                     registerNotifier.onCognomeChange(_cognomeController.text);
                     registerNotifier.onEmailChange(_emailController.text);
                     
+                    // 2. Valida i dati (se la validazione passa, va alla pagina successiva)
                     if (registerNotifier.validateStep1()) {
                       Navigator.of(context).pushNamed('/register_step2');
                     }
@@ -102,6 +117,7 @@ class _RegisterStep1ScreenState extends State<RegisterStep1Screen> {
                   child: const Text("Continua"),
                 ),
                 const SizedBox(height: 12),
+                // Permette di tornare indietro alla schermata di Login se si ha già un account
                 TextButton(
                   onPressed: () {
                     Navigator.of(context).pop();

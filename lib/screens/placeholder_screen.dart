@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+// Schermata "Segnaposto" (Placeholder).
+// Usata per le sezioni dell'app che sono ancora in via di sviluppo.
+// Mostra semplicemente un'icona di "lavori in corso" e il titolo della pagina passata.
 class PlaceholderScreen extends StatelessWidget {
   final String title;
 
@@ -8,6 +11,7 @@ class PlaceholderScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Barra superiore con il titolo dinamico
       appBar: AppBar(
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
@@ -15,6 +19,7 @@ class PlaceholderScreen extends StatelessWidget {
         elevation: 0,
       ),
       backgroundColor: const Color(0xFFEBEBEB),
+      // Corpo centrale con l'avviso di "Prossimamente"
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

@@ -6,6 +6,10 @@ import 'package:gymlog_flutter/widgets/stat_card.dart';
 import 'package:gymlog_flutter/widgets/tools_grid.dart';
 import 'package:gymlog_flutter/widgets/workout_today_card.dart';
 
+// Schermata principale (Dashboard) dell'applicazione.
+// Viene mostrata subito dopo il login e fa da "hub" centrale:
+// riassume l'allenamento di oggi, i progressi su peso e dieta, le "streak" di costanza
+// e fornisce l'accesso a tutte le altre sezioni (Community, Allenamento, ecc.).
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -14,6 +18,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // Appena la schermata viene inizializzata, chiede al Notifier di caricare tutti i dati dal DB
   @override
   void initState() {
     super.initState();
@@ -24,8 +29,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Si iscrive sia alle notifiche di HomeNotifier che di WorkoutNotifier
     return Consumer2<HomeNotifier, WorkoutNotifier>(
       builder: (context, homeState, workoutState, child) {
+        // Estrae il nome dell'utente per personalizzare il saluto
         final user = homeState.user;
         final nomeUtente = (user?.nome.trim().isNotEmpty == true) ? user!.nome.trim() : "Atleta";
         final iniziale = nomeUtente[0].toUpperCase();
@@ -33,11 +40,13 @@ class _HomeScreenState extends State<HomeScreen> {
         return Scaffold(
           backgroundColor: const Color(0xFFEBEBEB),
           body: SafeArea(
+            // Mostra un indicatore di caricamento finché i dati dell'utente non sono disponibili
             child: homeState.isLoading && user == null
                 ? const Center(
                     child: CircularProgressIndicator(color: Colors.black),
                   )
                 : RefreshIndicator(
+                    // Permette di aggiornare la pagina "tirando giù" (pull-to-refresh)
                     onRefresh: () => homeState.loadHomeData(),
                     color: Colors.black,
                     child: SingleChildScrollView(
@@ -47,6 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: 16),
+                          // Header: Messaggio di benvenuto con il nome dell'utente
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -62,7 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              const SizedBox(width: 12),
+                              // Icona del profilo in alto a destra (circolare con l'iniziale del nome)
                               GestureDetector(
                                 onTap: () => Navigator.pushNamed(context, '/profile'),
                                 child: Container(
@@ -87,6 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(height: 24),
 
+                          // Card dell'allenamento di oggi: mostra se c'è una sessione in corso o il prossimo allenamento in programma
                           WorkoutTodayCard(
                             nomeWorkout: homeState.workoutOdierno,
                             hasActiveWorkout: workoutState.activeWorkout != null,
@@ -99,10 +110,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(height: 16),
 
+                          // Blocco Statistiche: Due card affiancate (Peso e Calorie)
                           IntrinsicHeight(
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
+                                // Card riassuntiva del Peso attuale
                                 Expanded(
                                   child: StatCard(
                                     titolo: "Peso",
@@ -114,6 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 12),
+                                // Card riassuntiva delle Calorie assunte oggi rispetto all'obiettivo
                                 Expanded(
                                   child: StatCard(
                                     titolo: "Calorie oggi",
@@ -132,6 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(height: 16),
 
+                          // Blocco "I TUOI PROGRESSI DI OGGI" con gli "Streak" (giorni consecutivi)
                           Card(
                             margin: EdgeInsets.zero,
                             shape: RoundedRectangleBorder(
@@ -204,6 +219,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(height: 16),
 
+                          // Griglia degli Strumenti: Pulsantiera veloce per navigare verso le sezioni dell'app
                           ToolsGrid(
                             onAllenamento: () => Navigator.pushNamed(context, '/workout'),
                             onDieta: () => Navigator.pushNamed(context, '/diet'),

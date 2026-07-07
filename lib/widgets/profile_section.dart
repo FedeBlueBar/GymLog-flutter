@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+/// Widget che funge da intestazione (titolo) per raggruppare visivamente 
+/// più sezioni all'interno della schermata del profilo.
 class SectionHeader extends StatelessWidget {
+  /// Testo mostrato nell'intestazione (es. "Dati Personali").
   final String testo;
 
   const SectionHeader({super.key, required this.testo});
@@ -22,12 +25,27 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
+/// Widget che rappresenta una singola riga di informazione all'interno del profilo.
+/// Mostra un'icona colorata, un'etichetta (es. "Altezza") e il relativo valore.
+/// Supporta anche un'azione al tap tramite il parametro [onClick].
 class ProfileInfoRow extends StatelessWidget {
+  /// L'icona da mostrare a sinistra.
   final IconData icona;
+  
+  /// Colore dell'icona (default: viola).
   final Color iconColor;
+  
+  /// Colore di sfondo del contenitore dell'icona (default: viola chiaro).
   final Color iconBgColor;
+  
+  /// Etichetta che descrive il dato (es. "Età").
   final String etichetta;
+  
+  /// Valore del dato mostrato. Se nullo o vuoto, mostra un tratto "—".
   final String? valore;
+  
+  /// Funzione da eseguire quando l'utente tocca la riga.
+  /// Se presente, la riga mostra un'icona "freccia destra" indicando la cliccabilità.
   final VoidCallback? onClick;
 
   const ProfileInfoRow({
@@ -105,7 +123,10 @@ class ProfileInfoRow extends StatelessWidget {
   }
 }
 
+/// Contenitore stilizzato (Card) che raggruppa più [ProfileInfoRow]
+/// per separare logicamente le informazioni nel profilo utente.
 class ProfileCard extends StatelessWidget {
+  /// Lista di widget (tipicamente [ProfileInfoRow] o [ProfileDivider]) da inserire all'interno.
   final List<Widget> children;
 
   const ProfileCard({super.key, required this.children});
@@ -128,6 +149,7 @@ class ProfileCard extends StatelessWidget {
   }
 }
 
+/// Divisore orizzontale utilizzato per separare gli elementi all'interno di una [ProfileCard].
 class ProfileDivider extends StatelessWidget {
   const ProfileDivider({super.key});
 

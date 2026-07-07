@@ -1,9 +1,15 @@
+// Questo file contiene il Notifier (Controller di stato) per la gestione della Registrazione.
+// Si occupa di raccogliere e validare i dati inseriti dall'utente nel form, creare il suo account
+// (sia standard che tramite Google) e inizializzare il suo profilo sul database.
+
 import 'package:flutter/foundation.dart';
 import 'package:gymlog_flutter/models/user_model.dart';
 import 'package:gymlog_flutter/services/auth_service.dart';
 import 'package:gymlog_flutter/services/user_service.dart';
 
+// Classe che estende ChangeNotifier per gestire in tempo reale lo stato del form di registrazione.
 class RegisterNotifier extends ChangeNotifier {
+  // Dipendenze: servizi per gestire l'autenticazione Firebase e il database utenti
   final AuthService _authService;
   final UserService _userService;
 
@@ -13,6 +19,7 @@ class RegisterNotifier extends ChangeNotifier {
   })  : _authService = authService,
         _userService = userService;
 
+  // Variabili di stato interne (Tutti i campi testuali del modulo di registrazione)
   String _nome = '';
   String _cognome = '';
   String _email = '';
@@ -23,13 +30,14 @@ class RegisterNotifier extends ChangeNotifier {
   String _annoDiNascita = '';
   String _altezza = '';
   String _peso = '';
-  bool _isPersonalTrainer = false;
+  bool _isPersonalTrainer = false; // Indica se l'utente si sta registrando come coach (PT)
 
-  bool _isGoogleFlow = false;
+  // Flag e stati per l'interfaccia utente (UI)
+  bool _isGoogleFlow = false; // Se true, l'utente sta completando il profilo dopo aver effettuato il primo accesso con Google
   bool _isLoading = false;
   String? _errorMessage;
   bool _isRegisterSuccess = false;
-  String? _pendingGoogleUid;
+  String? _pendingGoogleUid;  // L'UID fornito da Google, mantenuto in sospeso finché non si salva il profilo sul DB
 
   String get nome => _nome;
   String get cognome => _cognome;
@@ -47,71 +55,92 @@ class RegisterNotifier extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isRegisterSuccess => _isRegisterSuccess;
 
+  // ==========================================
+  // METODI PER L'AGGIORNAMENTO IN TEMPO REALE
+  // ==========================================
+  // Questi metodi aggiornano le variabili interne ogni volta che l'utente digita
+  // qualcosa nei campi di testo e azzerano eventuali messaggi di errore precedenti.
   void onNomeChange(String value) {
     _nome = value;
     _errorMessage = null;
     notifyListeners();
   }
 
+  // Aggiorna la variabile interna del Cognome in tempo reale mentre l'utente digita
   void onCognomeChange(String value) {
     _cognome = value;
     _errorMessage = null;
     notifyListeners();
   }
 
+  // Aggiorna la variabile interna dell'Email e azzera eventuali messaggi di errore precedenti
   void onEmailChange(String value) {
     _email = value;
     _errorMessage = null;
     notifyListeners();
   }
 
+  // Aggiorna la variabile interna dell'Username
   void onUsernameChange(String value) {
     _username = value;
     _errorMessage = null;
     notifyListeners();
   }
 
+  // Aggiorna la variabile interna della Password
   void onPasswordChange(String value) {
     _password = value;
     _errorMessage = null;
     notifyListeners();
   }
 
+  // Aggiorna la variabile di sicurezza per verificare la corrispondenza della password
   void onConfermaPasswordChange(String value) {
     _confermaPassword = value;
     _errorMessage = null;
     notifyListeners();
   }
 
+  // Aggiorna l'obiettivo scelto dall'utente (es. "Dimagrimento" o "Massa")
   void onObiettivoChange(String value) {
     _obiettivo = value;
     _errorMessage = null;
     notifyListeners();
   }
 
+  // Aggiorna l'Anno di Nascita inserito dall'utente
   void onAnnoDiNascitaChange(String value) {
     _annoDiNascita = value;
     _errorMessage = null;
     notifyListeners();
   }
 
+  // Aggiorna l'Altezza (in cm) inserita nel modulo
   void onAltezzaChange(String value) {
     _altezza = value;
     _errorMessage = null;
     notifyListeners();
   }
 
+  // Aggiorna il Peso. Sostituirà eventuali virgole con punti al momento del salvataggio.
   void onPesoChange(String value) {
     _peso = value;
     _errorMessage = null;
     notifyListeners();
   }
 
+  // Attiva o disattiva il flag che indica se l'utente si sta registrando come Personal Trainer
   void onIsPersonalTrainerChange(bool value) {
     _isPersonalTrainer = value;
     notifyListeners();
   }
 
+  // ==========================================
+  // LOGICA E AZIONI DI REGISTRAZIONE
+  // ==========================================
+
+  // Popola temporaneamente il form con i dati estratti dall'account Google.
+  // Utile quando un utente si iscrive con Google ma deve ancora fornire altezza/peso.
   void setGoogleUserData(String uid, String nome, String cognome, String email) {
     _nome = nome;
     _cognome = cognome;
@@ -122,11 +151,13 @@ class RegisterNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Resetta il flag di completamento dopo che la UI ha effettuato il cambio pagina
   void onRegisterHandled() {
     _isRegisterSuccess = false;
     notifyListeners();
   }
 
+  // Controlla che il primo blocco del form (Dati Personali) sia compilato correttamente
   bool validateStep1() {
     if (_nome.trim().isEmpty || _cognome.trim().isEmpty) {
       _errorMessage = "Nome e cognome sono obbligatori";
@@ -146,6 +177,8 @@ class RegisterNotifier extends ChangeNotifier {
     return true;
   }
 
+  // Esegue la registrazione tradizionale con Email e Password.
+  // Crea prima l'utente su Firebase Auth e subito dopo salva i suoi dati nel database Firestore.
   Future<void> register() async {
     if (!_validateStep2()) return;
 
@@ -173,6 +206,8 @@ class RegisterNotifier extends ChangeNotifier {
     }
   }
 
+  // Completa la registrazione per un utente che si è autenticato con Google.
+  // Poiché l'account Auth è già stato creato da Google, si limita a salvare i dati (inclusi quelli fisici appena inseriti) su Firestore.
   Future<void> completeGoogleOnboarding() async {
     final uid = _pendingGoogleUid;
     if (uid == null) {
@@ -204,6 +239,8 @@ class RegisterNotifier extends ChangeNotifier {
     }
   }
 
+  // Metodo interno di supporto che prende tutti i dati inseriti nel form,
+  // crea un oggetto UserModel e lo salva nel database Firestore.
   Future<void> _saveUserToFirestore(String uid) async {
     try {
       await _userService.ensureUserDocument(uid, _email);
@@ -237,6 +274,8 @@ class RegisterNotifier extends ChangeNotifier {
     }
   }
 
+  // Controlla che il secondo blocco del form (Credenziali/Account) sia valido,
+  // verificando ad esempio la lunghezza della password e la sua corrispondenza.
   bool _validateStep2() {
     if (_username.trim().isEmpty) {
       _errorMessage = "Username obbligatorio";
@@ -261,6 +300,7 @@ class RegisterNotifier extends ChangeNotifier {
     return true;
   }
 
+  // Valida i campi essenziali per chi si registra tramite Google
   bool _validateOnboarding() {
     if (_username.trim().isEmpty) {
       _errorMessage = "Username obbligatorio";

@@ -8,6 +8,9 @@ import 'package:gymlog_flutter/notifiers/workout_notifier.dart';
 import 'package:gymlog_flutter/notifiers/home_notifier.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+/// Finestra di dialogo per creare o modificare una scheda di allenamento.
+/// Se [workout] è null, stiamo creando una nuova scheda.
+/// Se [clientUid] è specificato, la scheda viene creata da un PT per quel cliente.
 class WorkoutPlanDialog extends StatefulWidget {
   final Workout? workout;
   final String? clientUid;
@@ -20,8 +23,14 @@ class WorkoutPlanDialog extends StatefulWidget {
 
 class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
   final _formKey = GlobalKey<FormState>();
+  
+  /// Controller per il nome della scheda (es. "Petto-Bicipiti").
   late TextEditingController _nameController;
+  
+  /// Tipo di split selezionato (es. Push, Pull, Legs).
   late String _selectedSplit;
+  
+  /// Lista locale degli esercizi inclusi nella scheda.
   late List<Exercise> _exercises;
 
   final List<String> _splitTypes = [
@@ -52,6 +61,7 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
     super.dispose();
   }
 
+  /// Aggiunge un nuovo esercizio (selezionato tramite la ricerca) alla scheda.
   void _addExercise(Map<String, dynamic> item) {
     setState(() {
       _exercises.add(Exercise(
@@ -70,22 +80,27 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // Recupera il notifier per poter salvare la scheda
     final notifier = Provider.of<WorkoutNotifier>(context, listen: false);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.white, // Sfondo bianco per dare un look pulito
       appBar: AppBar(
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
-        elevation: 0,
+        elevation: 0, // AppBar piatta
+        // Titolo dinamico in base all'operazione (creazione o modifica)
         title: Text(
           widget.workout == null ? "Nuova Scheda" : "Modifica Scheda",
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
+          // Pulsante di salvataggio
           TextButton(
             onPressed: () async {
+              // Verifica la validità del form (in particolare il nome obbligatorio)
               if (_formKey.currentState!.validate()) {
+                // Non permette di salvare se la scheda è vuota
                 if (_exercises.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text("Aggiungi almeno un esercizio!")),
@@ -93,7 +108,9 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
                   return;
                 }
 
+                // Salva o aggiorna la scheda tramite il Notifier
                 if (widget.clientUid != null) {
+                  // Salvataggio per conto di un cliente (modalità PT)
                   await notifier.saveWorkoutForClient(
                     widget.clientUid!,
                     _nameController.text.trim(),
@@ -101,6 +118,7 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
                     _selectedSplit,
                   );
                 } else {
+                  // Salvataggio per il proprio profilo
                   await notifier.saveWorkout(
                     _nameController.text.trim(),
                     _exercises,
@@ -109,6 +127,7 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
                   );
                 }
 
+                // Dopo aver salvato, aggiorna i dati in Home e chiude il Dialog
                 if (mounted) {
                   Provider.of<HomeNotifier>(context, listen: false).loadHomeData();
                   Navigator.pop(context);
@@ -128,6 +147,7 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
+              // Campo di testo per il nome della scheda
               TextFormField(
                 controller: _nameController,
                 cursorColor: Colors.black,
@@ -135,7 +155,7 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
                   labelText: "Nome Allenamento",
                   labelStyle: const TextStyle(color: Colors.black),
                   filled: true,
-                  fillColor: const Color(0xFFF6F5F8),
+                  fillColor: const Color(0xFFF6F5F8), // Sfondo grigio tenue
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide.none,
@@ -149,6 +169,7 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
                     (val == null || val.trim().isEmpty) ? "Inserisci il nome" : null,
               ),
               const SizedBox(height: 20),
+              // Menu a tendina (Dropdown) per selezionare il tipo di split (Push, Pull, ecc.)
               DropdownButtonFormField<String>(
                 initialValue: _selectedSplit,
                 iconEnabledColor: Colors.black,
@@ -167,6 +188,7 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
                     borderSide: const BorderSide(color: Colors.black, width: 1.5),
                   ),
                 ),
+                // Mappa i tipi di split disponibili in un elenco di DropdownMenuItem
                 items: _splitTypes.map((type) {
                   return DropdownMenuItem(value: type, child: Text(type));
                 }).toList(),
@@ -179,6 +201,7 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
                 },
               ),
               const SizedBox(height: 16),
+              // Intestazione per la lista di esercizi e pulsante di aggiunta
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -196,10 +219,12 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
                       elevation: 0,
                     ),
                     onPressed: () async {
+                      // Apre il dialog di ricerca degli esercizi
                       final result = await showDialog<Map<String, dynamic>>(
                         context: context,
                         builder: (ctx) => const ExerciseSearchDialog(),
                       );
+                      // Se l'utente seleziona un esercizio, lo aggiunge alla lista
                       if (result != null) {
                         _addExercise(result);
                       }
@@ -208,6 +233,7 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
                 ],
               ),
               const SizedBox(height: 8),
+              // Sezione scrollabile con la lista degli esercizi aggiunti
               Expanded(
                 child: _exercises.isEmpty
                     ? const Center(
@@ -217,10 +243,13 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
                             style: TextStyle(color: Colors.grey),
                           ),
                       )
+                    // Utilizza una ReorderableListView per permettere all'utente di riordinare gli esercizi
                     : ReorderableListView.builder(
                         itemCount: _exercises.length,
+                        // Callback per gestire il drag & drop
                         onReorder: (oldIndex, newIndex) {
                           setState(() {
+                            // Se spostiamo in basso, riduciamo l'indice di 1 per compensare lo spostamento interno della lista
                             if (newIndex > oldIndex) {
                               newIndex -= 1;
                             }
@@ -230,8 +259,9 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
                         },
                         itemBuilder: (context, index) {
                           final ex = _exercises[index];
+                          // Ogni esercizio è mostrato all'interno di una Card
                           return Card(
-                            key: ValueKey(ex.id + index.toString()),
+                            key: ValueKey(ex.id + index.toString()), // Chiave univoca essenziale per ReorderableListView
                             color: const Color(0xFFF6F5F8),
                             elevation: 0,
                             margin: const EdgeInsets.symmetric(vertical: 6),
@@ -242,17 +272,20 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               child: Row(
                                 children: [
+                                  // Icona per suggerire all'utente che può trascinare la riga
                                   const Icon(Icons.drag_handle, color: Colors.grey),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
+                                        // Nome dell'esercizio
                                         Text(
                                           ex.name,
                                           style: const TextStyle(fontWeight: FontWeight.bold),
                                         ),
                                         const SizedBox(height: 6),
+                                        // Riga di campi per configurare Serie, Ripetizioni, Peso
                                         Row(
                                           children: [
                                             Expanded(
@@ -295,6 +328,7 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
                                       ],
                                     ),
                                   ),
+                                  // Bottone per rimuovere l'esercizio dalla scheda
                                   IconButton(
                                     icon: const Icon(Icons.delete, color: Colors.red),
                                     onPressed: () {
@@ -318,6 +352,7 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
   }
 }
 
+/// Dialog per cercare gli esercizi usando [ExerciseApiService] tramite il [WorkoutNotifier].
 class ExerciseSearchDialog extends StatefulWidget {
   const ExerciseSearchDialog({super.key});
 
@@ -327,6 +362,9 @@ class ExerciseSearchDialog extends StatefulWidget {
 
 class _ExerciseSearchDialogState extends State<ExerciseSearchDialog> {
   final TextEditingController _queryController = TextEditingController();
+  
+  /// Timer per implementare il "debounce": evita di fare richieste di rete ad ogni singola
+  /// lettera digitata, aspettando 600ms che l'utente finisca di scrivere.
   Timer? _debounce;
 
   @override
@@ -345,16 +383,19 @@ class _ExerciseSearchDialogState extends State<ExerciseSearchDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // Ottiene il Notifier che gestisce lo stato di caricamento e i risultati della ricerca
     final notifier = Provider.of<WorkoutNotifier>(context);
 
     return Dialog(
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
+        // Il dialog occupa al massimo il 70% dell'altezza dello schermo per non coprire la tastiera
         height: MediaQuery.of(context).size.height * 0.7,
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            // Intestazione con titolo e pulsante di chiusura
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -364,11 +405,12 @@ class _ExerciseSearchDialogState extends State<ExerciseSearchDialog> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.close, color: Colors.black),
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.pop(context), // Chiude il dialog senza restituire nulla
                 )
               ],
             ),
             const SizedBox(height: 8),
+            // Campo di testo per immettere la query di ricerca
             TextField(
               controller: _queryController,
               cursorColor: Colors.black,
@@ -376,7 +418,7 @@ class _ExerciseSearchDialogState extends State<ExerciseSearchDialog> {
                 hintText: "Es: Panca piana, Squat, Petto...",
                 prefixIcon: const Icon(Icons.search, color: Colors.black54),
                 filled: true,
-                fillColor: const Color(0xFFF6F5F8),
+                fillColor: const Color(0xFFF6F5F8), // Sfondo grigio tenue
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -386,13 +428,17 @@ class _ExerciseSearchDialogState extends State<ExerciseSearchDialog> {
                   borderSide: const BorderSide(color: Colors.black, width: 1.5),
                 ),
               ),
+              // Ad ogni carattere digitato, chiama il metodo che implementa il debounce
               onChanged: (val) => _onSearchChanged(val, notifier),
             ),
             const SizedBox(height: 12),
+            // Mostra il caricamento, un messaggio di feedback o la lista dei risultati
             Expanded(
               child: notifier.isLoading
+                  // Se isLoading è true, mostra l'indicatore di caricamento circolare
                   ? const Center(child: CircularProgressIndicator(color: Colors.black))
                   : notifier.exerciseSearchResults.isEmpty
+                      // Se la lista è vuota dopo o durante la ricerca, mostra un testo esplicativo
                       ? Center(
                           child: Text(
                             _queryController.text.trim().length < 2
@@ -401,11 +447,13 @@ class _ExerciseSearchDialogState extends State<ExerciseSearchDialog> {
                             style: const TextStyle(color: Colors.grey),
                           ),
                         )
+                      // Mostra la lista dei risultati tramite ListView
                       : ListView.builder(
                           itemCount: notifier.exerciseSearchResults.length,
                           itemBuilder: (ctx, idx) {
                             final item = notifier.exerciseSearchResults[idx];
                             return ListTile(
+                              // Icona generica per l'esercizio nel cerchio grigio
                               leading: Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
@@ -414,9 +462,12 @@ class _ExerciseSearchDialogState extends State<ExerciseSearchDialog> {
                                 ),
                                 child: const Icon(Icons.fitness_center, color: Colors.black, size: 20),
                               ),
+                              // Nome dell'esercizio in grassetto
                               title: Text(item['name'] ?? "", style: const TextStyle(fontWeight: FontWeight.bold)),
+                              // Sottotitolo che mostra muscolo e regione target
                               subtitle: Text("${item['bodyPart'] ?? ''} • ${item['target'] ?? ''}"),
                               onTap: () {
+                                // Al tap, chiude il dialog restituendo la mappa dei dati dell'esercizio selezionato
                                 Navigator.pop(context, item);
                               },
                             );
@@ -430,6 +481,8 @@ class _ExerciseSearchDialogState extends State<ExerciseSearchDialog> {
   }
 }
 
+/// Finestra di dialogo che mostra i dettagli di un esercizio,
+/// inclusa l'immagine (GIF), le istruzioni e un eventuale bottone per il tutorial su YouTube.
 class ExerciseDetailsDialog extends StatefulWidget {
   final Exercise exercise;
 
@@ -456,12 +509,15 @@ class _ExerciseDetailsDialogState extends State<ExerciseDetailsDialog> {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
+        // Limita l'altezza del dialog all'80% dello schermo per la scrollabilità
         height: MediaQuery.of(context).size.height * 0.8,
         padding: const EdgeInsets.all(16),
+        // Se sta caricando o non ha i dati, mostra il loader
         child: notifier.isLoading || exDetails == null
             ? const Center(child: CircularProgressIndicator(color: Colors.red))
             : Column(
                 children: [
+                  // Riga superiore: Titolo e Pulsante di chiusura
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -469,13 +525,14 @@ class _ExerciseDetailsDialogState extends State<ExerciseDetailsDialog> {
                         child: Text(
                           exDetails.name,
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          maxLines: 2,
+                          maxLines: 2, // Se il nome è lungo, va a capo fino a 2 linee
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.close),
                         onPressed: () {
+                          // Pulisce i dettagli salvati per liberare memoria prima di chiudere
                           notifier.clearExerciseDetails();
                           Navigator.pop(context);
                         },
@@ -483,11 +540,13 @@ class _ExerciseDetailsDialogState extends State<ExerciseDetailsDialog> {
                     ],
                   ),
                   const SizedBox(height: 8),
+                  // Contenuto scrollabile (Immagine, info, istruzioni, tutorial)
                   Expanded(
                     child: SingleChildScrollView(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // 1. Mostra la GIF dell'esecuzione se disponibile
                           if (exDetails.gifUrl != null && exDetails.gifUrl!.isNotEmpty)
                             Center(
                               child: Container(
@@ -501,6 +560,7 @@ class _ExerciseDetailsDialogState extends State<ExerciseDetailsDialog> {
                                   child: Image.network(
                                     exDetails.gifUrl!,
                                     fit: BoxFit.contain,
+                                    // Gestione errore nel caricamento immagine
                                     errorBuilder: (ctx, err, stack) =>
                                         const Center(child: Icon(Icons.broken_image, size: 60)),
                                   ),
@@ -508,6 +568,7 @@ class _ExerciseDetailsDialogState extends State<ExerciseDetailsDialog> {
                               ),
                             ),
                           const SizedBox(height: 16),
+                          // 2. Chip informativi per muscolo target e parte del corpo
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
@@ -516,6 +577,7 @@ class _ExerciseDetailsDialogState extends State<ExerciseDetailsDialog> {
                             ],
                           ),
                           const SizedBox(height: 16),
+                          // 3. Istruzioni step-by-step
                           const Text(
                             "Istruzioni per l'esecuzione:",
                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
@@ -524,6 +586,7 @@ class _ExerciseDetailsDialogState extends State<ExerciseDetailsDialog> {
                           if (exDetails.instructions.isEmpty)
                             const Text("Nessuna istruzione disponibile.", style: TextStyle(color: Colors.grey))
                           else
+                            // Mappa ogni istruzione enumerandola
                             ...exDetails.instructions.asMap().entries.map((entry) {
                               final index = entry.key + 1;
                               final instruction = entry.value;
@@ -532,13 +595,16 @@ class _ExerciseDetailsDialogState extends State<ExerciseDetailsDialog> {
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    // Numero dello step in rosso e grassetto
                                     Text("$index. ", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                                    // Testo descrittivo espanso
                                     Expanded(child: Text(instruction)),
                                   ],
                                 ),
                               );
                             }),
                           const SizedBox(height: 20),
+                          // 4. Bottone per avviare l'app YouTube esterna (se c'è l'id del video)
                           if (exDetails.youtubeVideoId != null && exDetails.youtubeVideoId!.isNotEmpty)
                             Center(
                               child: ElevatedButton.icon(
@@ -550,6 +616,7 @@ class _ExerciseDetailsDialogState extends State<ExerciseDetailsDialog> {
                                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                 ),
                                 onPressed: () async {
+                                  // Crea un Uri valido per il video e prova a lanciarlo
                                   final url = Uri.parse("https://www.youtube.com/watch?v=${exDetails.youtubeVideoId}");
                                   if (await canLaunchUrl(url)) {
                                     await launchUrl(url, mode: LaunchMode.externalApplication);
@@ -585,6 +652,7 @@ class _ExerciseDetailsDialogState extends State<ExerciseDetailsDialog> {
   }
 }
 
+/// Finestra di dialogo per configurare il piano settimanale di allenamento (Split).
 class SplitSettingsDialog extends StatefulWidget {
   const SplitSettingsDialog({super.key});
 
@@ -595,6 +663,8 @@ class SplitSettingsDialog extends StatefulWidget {
 class _SplitSettingsDialogState extends State<SplitSettingsDialog> {
   DateTime? _startDate;
   DateTime? _endDate;
+  
+  /// Mappa che associa l'indice del giorno (0=Lunedì, 6=Domenica) al tipo di allenamento.
   final Map<int, String> _splitMap = {};
 
   final List<String> _splitOptions = [
@@ -638,6 +708,7 @@ class _SplitSettingsDialogState extends State<SplitSettingsDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // Recupera il notifier per salvare il piano settimanale (SplitPlan)
     final notifier = Provider.of<WorkoutNotifier>(context);
 
     return Scaffold(
@@ -648,12 +719,16 @@ class _SplitSettingsDialogState extends State<SplitSettingsDialog> {
         elevation: 0,
         title: const Text("Pianificazione Split", style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
+          // Bottone di conferma e salvataggio
           IconButton(
             icon: const Icon(Icons.check, color: Colors.black),
             onPressed: () async {
+              // Converte le date in millisecondi (0 se null)
               final startMillis = _startDate?.millisecondsSinceEpoch ?? 0;
               final endMillis = _endDate?.millisecondsSinceEpoch ?? 0;
+              // Salva il piano usando il Notifier
               await notifier.saveSplitPlan(startMillis, endMillis, _splitMap);
+              // Se il widget è ancora montato, aggiorna i dati in Home e chiude la schermata
               if (mounted) {
                 Provider.of<HomeNotifier>(context, listen: false).loadHomeData();
                 Navigator.pop(context);
@@ -667,6 +742,7 @@ class _SplitSettingsDialogState extends State<SplitSettingsDialog> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Sezione 1: Selezione del periodo di validità (Data di inizio e Data di fine)
             const Text(
               "Periodo di Validità (Opzionale)",
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -674,6 +750,7 @@ class _SplitSettingsDialogState extends State<SplitSettingsDialog> {
             const SizedBox(height: 8),
             Row(
               children: [
+                // Bottone per selezionare la Data di Inizio
                 Expanded(
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
@@ -682,6 +759,7 @@ class _SplitSettingsDialogState extends State<SplitSettingsDialog> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     onPressed: () async {
+                      // Mostra il DatePicker nativo di Flutter personalizzato nei colori
                       final picked = await showDatePicker(
                         context: context,
                         initialDate: _startDate ?? DateTime.now(),
@@ -702,6 +780,7 @@ class _SplitSettingsDialogState extends State<SplitSettingsDialog> {
                   ),
                 ),
                 const SizedBox(width: 8),
+                // Bottone per selezionare la Data di Fine
                 Expanded(
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
@@ -710,6 +789,7 @@ class _SplitSettingsDialogState extends State<SplitSettingsDialog> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     onPressed: () async {
+                      // Imposta come data iniziale la fine impostata in precedenza, oppure tra 7 giorni
                       final picked = await showDatePicker(
                         context: context,
                         initialDate: _endDate ?? DateTime.now().add(const Duration(days: 7)),
@@ -732,11 +812,13 @@ class _SplitSettingsDialogState extends State<SplitSettingsDialog> {
               ],
             ),
             const SizedBox(height: 24),
+            // Sezione 2: Selezione del tipo di allenamento (Split) per ogni giorno della settimana
             const Text(
               "Programmazione Settimanale",
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 8),
+            // Genera 7 contenitori, uno per ogni giorno della settimana
             ...List.generate(7, (index) {
               return Container(
                 margin: const EdgeInsets.symmetric(vertical: 6),
@@ -750,13 +832,15 @@ class _SplitSettingsDialogState extends State<SplitSettingsDialog> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      // Nome del giorno (es. Lunedì)
                       Text(
                         _weekDays[index],
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
+                      // Menu a tendina per assegnare lo Split a quel giorno
                       DropdownButton<String>(
                         value: _splitMap[index] ?? "Rest",
-                        underline: Container(),
+                        underline: Container(), // Rimuove la linea di default sotto il Dropdown
                         iconEnabledColor: Colors.black,
                         dropdownColor: Colors.white,
                         borderRadius: BorderRadius.circular(12),
@@ -777,7 +861,6 @@ class _SplitSettingsDialogState extends State<SplitSettingsDialog> {
                 ),
               );
             }),
-
           ],
         ),
       ),

@@ -1,8 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
+/// Servizio che si occupa della traduzione dei testi (es. nomi e dettagli degli esercizi)
+/// utilizzando l'API di MyMemory e dizionari locali per termini specifici del fitness.
 class TranslationService {
+  // URL base per le chiamate HTTP all'API di traduzione MyMemory
   static const String _baseUrl = "https://api.mymemory.translated.net";
+  
+  // Cache in memoria per evitare di richiedere più volte la traduzione della stessa stringa
   final Map<String, String> _cache = {};
 
   static const Map<String, String> _localFitnessTranslations = {
@@ -34,12 +39,17 @@ class TranslationService {
     "collo": "neck"
   };
 
+  /// Metodo che prova a tradurre una query inserita dall'utente (in italiano) 
+  /// verso l'inglese utilizzando il dizionario locale predefinito. 
+  /// Utile per filtrare la ricerca sull'API degli esercizi (che è in inglese).
   String getLocalTranslation(String query) {
     final lowercaseQuery = query.toLowerCase().trim();
+    // Se la query intera è nel dizionario, restituisce direttamente la traduzione
     if (_localFitnessTranslations.containsKey(lowercaseQuery)) {
       return _localFitnessTranslations[lowercaseQuery]!;
     }
 
+    // Se è una frase, traduce le singole parole presenti nel dizionario
     final words = lowercaseQuery.split(RegExp(r'\s+'));
     final translatedWords = words.map((word) {
       return _localFitnessTranslations[word] ?? word;
@@ -47,22 +57,29 @@ class TranslationService {
     return translatedWords.join(" ");
   }
 
+  /// Pulisce una stringa in inglese (tipicamente il nome di un esercizio tradotto 
+  /// approssimativamente) rimuovendo parentesi, caratteri speciali e, 
+  /// se presente, la 's' finale (plurali) per agevolare una ricerca più ampia.
   String cleanEnglishQuery(String translated) {
     var cleaned = translated
-        .replaceAll(RegExp(r'\(.*?\)'), "")
-        .replaceAll(RegExp(r'[^a-zA-Z0-9\s]'), "")
+        .replaceAll(RegExp(r'\(.*?\)'), "") // Rimuove il testo tra parentesi tonde
+        .replaceAll(RegExp(r'[^a-zA-Z0-9\s]'), "") // Rimuove la punteggiatura
         .trim()
         .toLowerCase();
 
+    // Rimuove la 's' finale (es. "crunches" -> "crunch", ma non "press")
     if (cleaned.endsWith("s") && !cleaned.endsWith("ss") && !cleaned.endsWith("us") && cleaned.length > 3) {
       cleaned = cleaned.substring(0, cleaned.length - 1);
     }
     return cleaned;
   }
 
+  /// Richiede la traduzione asincrona di una stringa [text] usando l'API di MyMemory.
+  /// [langPair] definisce la combinazione di lingue, di default "en|it" (Inglese -> Italiano).
   Future<String> translateText(String text, {String langPair = "en|it"}) async {
     if (text.trim().isEmpty) return text;
 
+    // Controlla se la traduzione è già presente in cache
     final cacheKey = "$langPair:$text";
     if (_cache.containsKey(cacheKey)) {
       return _cache[cacheKey]!;
@@ -77,15 +94,21 @@ class TranslationService {
         final Map parsed = json.decode(response.body);
         final responseData = parsed['responseData'] as Map?;
         final translatedText = responseData?['translatedText']?.toString();
+        // Se la traduzione ha successo, salva in cache e restituisce
         if (translatedText != null && translatedText.trim().isNotEmpty) {
           _cache[cacheKey] = translatedText;
           return translatedText;
         }
       }
     } catch (_) {}
+    
+    // In caso di errore o assenza di traduzione, restituisce il testo originale
     return text;
   }
 
+  /// Metodo per tradurre in batch una lista di stringhe ([texts]).
+  /// Unisce le stringhe non presenti in cache separandole da \n e richiede
+  /// una singola traduzione cumulativa all'API (ottimizzazione delle chiamate).
   Future<List<String>> translateTexts(List<String> texts, {String langPair = "en|it"}) async {
     if (texts.isEmpty) return [];
 
@@ -93,6 +116,7 @@ class TranslationService {
     final uncachedIndices = <int>[];
     final uncachedTexts = <String>[];
 
+    // Controlla prima quali elementi sono già presenti in cache
     for (int i = 0; i < texts.length; i++) {
       final text = texts[i];
       final cacheKey = "$langPair:$text";
@@ -104,11 +128,13 @@ class TranslationService {
       }
     }
 
+    // Se tutte le stringhe sono già tradotte, ritorna direttamente
     if (uncachedTexts.isEmpty) {
       return results;
     }
 
     try {
+      // Unisce le stringhe per fare una sola chiamata HTTP
       final joinedText = uncachedTexts.join("\n");
       final query = Uri.encodeComponent(joinedText);
       final url = Uri.parse("$_baseUrl/get?q=$query&langpair=$langPair");
@@ -121,14 +147,15 @@ class TranslationService {
 
         if (translatedJoined != null && translatedJoined.trim().isNotEmpty) {
           final translatedLines = translatedJoined.split("\n").map((e) => e.trim()).toList();
+          // Verifica che il numero di righe restituite corrisponda
           if (translatedLines.length == uncachedTexts.length) {
             for (int i = 0; i < translatedLines.length; i++) {
               final origText = uncachedTexts[i];
               final cacheKey = "$langPair:$origText";
-              _cache[cacheKey] = translatedLines[i];
+              _cache[cacheKey] = translatedLines[i]; // Salva in cache
 
               final origIndex = uncachedIndices[i];
-              results[origIndex] = translatedLines[i];
+              results[origIndex] = translatedLines[i]; // Ricompone l'ordine
             }
             return results;
           }
@@ -136,6 +163,7 @@ class TranslationService {
       }
     } catch (_) {}
 
+    // Fallback in caso di fallimento della chiamata in batch: tenta le singole chiamate
     final futures = uncachedTexts.map((t) => translateText(t, langPair: langPair)).toList();
     final translatedUncached = await Future.wait(futures);
     for (int i = 0; i < translatedUncached.length; i++) {
@@ -146,6 +174,8 @@ class TranslationService {
     return results;
   }
 
+  /// Metodo statico che traduce i nomi inglesi delle parti del corpo 
+  /// forniti dall'API ExerciseDB in Italiano.
   String translateBodyPart(String? bodyPart) {
     if (bodyPart == null || bodyPart.trim().isEmpty) return "";
     switch (bodyPart.toLowerCase().trim()) {
@@ -174,6 +204,8 @@ class TranslationService {
     }
   }
 
+  /// Metodo statico che traduce i nomi inglesi dei muscoli specifici target 
+  /// forniti dall'API ExerciseDB in Italiano.
   String translateTarget(String? target) {
     if (target == null || target.trim().isEmpty) return "";
     switch (target.toLowerCase().trim()) {

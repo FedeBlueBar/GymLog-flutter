@@ -5,13 +5,18 @@ import 'package:gymlog_flutter/models/exercise.dart';
 import 'package:gymlog_flutter/models/workout_log.dart';
 import 'package:gymlog_flutter/models/split_plan.dart';
 
+/// Servizio dedicato alla gestione degli allenamenti, dei log storici 
+/// e delle programmazioni settimanali (Split) interagendo con Firestore.
 class WorkoutService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  // Riferimenti alle collezioni usate nel database
   CollectionReference get _workoutsCol => _db.collection('workouts');
   CollectionReference get _workoutLogsCol => _db.collection('workout_logs');
   CollectionReference get _usersCol => _db.collection('users');
 
+  /// Salva una nuova scheda di allenamento o ne aggiorna una esistente.
+  /// Se l'ID è vuoto, ne genera uno nuovo. Assegna l'allenamento all'UID corrente.
   Future<void> saveWorkout(Workout workout, String uid) async {
     final workoutId = workout.id.isEmpty ? _workoutsCol.doc().id : workout.id;
     final newWorkout = workout.copyWith(
@@ -22,6 +27,9 @@ class WorkoutService {
     await _workoutsCol.doc(workoutId).set(newWorkout.toMap());
   }
 
+  /// Permette a un utente di inviare una copia di una propria scheda a un amico.
+  /// Recupera i nomi e i ruoli di mittente e destinatario prima di salvare la scheda
+  /// affinché siano visualizzabili correttamente nella UI del destinatario.
   Future<void> sendWorkoutToFriend(Workout workout, String currentUid, String friendId) async {
     final senderDoc = await _usersCol.doc(currentUid).get();
     final senderName = (senderDoc.data() as Map?)?['nome']?.toString() ?? "Personal Trainer";
@@ -32,6 +40,7 @@ class WorkoutService {
     final receiverName = (receiverDoc.data() as Map?)?['nome']?.toString() ?? "Amico";
 
     final newWorkoutId = _workoutsCol.doc().id;
+    // Crea una copia della scheda assegnandola all'amico e tracciandone la provenienza
     final workoutCopy = workout.copyWith(
       id: newWorkoutId,
       userId: currentUid,
@@ -47,6 +56,8 @@ class WorkoutService {
     await _workoutsCol.doc(newWorkoutId).set(workoutCopy.toMap());
   }
 
+  /// Permette a un Personal Trainer di creare una scheda da zero e assegnarla
+  /// direttamente a un proprio cliente (indicato dal clientUid).
   Future<void> saveWorkoutForClient({
     required String clientUid,
     required String ptUid,
@@ -63,8 +74,8 @@ class WorkoutService {
     final newWorkoutId = _workoutsCol.doc().id;
     final workout = Workout(
       id: newWorkoutId,
-      userId: ptUid,
-      assignedTo: clientUid,
+      userId: ptUid, // Chi ha creato la scheda
+      assignedTo: clientUid, // Chi la visualizzerà e userà
       name: name,
       exercises: exercises.where((e) => e.name.trim().isNotEmpty).toList(),
       splitType: splitType,
@@ -79,15 +90,21 @@ class WorkoutService {
     await _workoutsCol.doc(newWorkoutId).set(workout.toMap());
   }
 
+  /// Elimina definitivamente una scheda di allenamento.
   Future<void> deleteWorkout(String workoutId) async {
     await _workoutsCol.doc(workoutId).delete();
   }
 
+  /// Ascolta in tempo reale i cambiamenti alle schede dell'utente.
+  /// Combina due query: 
+  /// 1) Schede create personalmente dall'utente (`userId` == uid).
+  /// 2) Schede assegnate all'utente da altri (PT o amici) (`assignedTo` == uid).
   Stream<List<Workout>> getWorkoutsRealtime(String uid) {
     final controller = StreamController<List<Workout>>();
     List<Workout> owned = [];
     List<Workout> assigned = [];
 
+    // Funzione helper per unire e ordinare i risultati evitando duplicati
     void emitMerged() {
       final merged = (owned + assigned);
       final seenIds = <String>{};
@@ -98,6 +115,7 @@ class WorkoutService {
       }
     }
 
+    // Stream 1: Schede di cui l'utente è il creatore principale
     final subOwned = _workoutsCol.where('userId', isEqualTo: uid).snapshots().listen(
       (snap) {
         owned = snap.docs
@@ -110,6 +128,7 @@ class WorkoutService {
       },
     );
 
+    // Stream 2: Schede che sono state condivise o assegnate all'utente
     final subAssigned = _workoutsCol.where('assignedTo', isEqualTo: uid).snapshots().listen(
       (snap) {
         assigned = snap.docs
@@ -122,6 +141,7 @@ class WorkoutService {
       },
     );
 
+    // Gestione della pulizia quando non c'è più nessun listener
     controller.onCancel = () {
       subOwned.cancel();
       subAssigned.cancel();
@@ -131,6 +151,8 @@ class WorkoutService {
     return controller.stream;
   }
 
+  /// Salva il log (storico) di un allenamento terminato, 
+  /// includendo tutti gli esercizi fatti, i pesi e i tempi.
   Future<void> saveWorkoutLog(WorkoutLog log, String uid) async {
     final logId = _workoutLogsCol.doc().id;
     final newLog = WorkoutLog(
@@ -144,6 +166,8 @@ class WorkoutService {
     await _workoutLogsCol.doc(logId).set(newLog.toMap());
   }
 
+  /// Ascolta in tempo reale gli allenamenti terminati (log) dell'utente, 
+  /// ordinati dal più recente al più vecchio.
   Stream<List<WorkoutLog>> getWorkoutLogsRealtime(String uid) {
     return _workoutLogsCol.where('userId', isEqualTo: uid).snapshots().map((snap) {
       final logs = snap.docs
@@ -154,10 +178,14 @@ class WorkoutService {
     });
   }
 
+  /// Salva o aggiorna il piano settimanale (Split) di allenamento dell'utente.
   Future<void> saveSplitPlan(SplitPlan plan, String uid) async {
     await _db.collection('user_splits').doc(uid).set(plan.toMap());
   }
 
+  /// Recupera il piano settimanale dell'utente. Se l'utente non ne ha mai
+  /// salvato uno, restituisce un piano predefinito con una divisione standard
+  /// (Push, Pull, Rest, Legs, Cardio, Addome, Rest).
   Future<SplitPlan> getSplitPlan(String uid) async {
     final doc = await _db.collection('user_splits').doc(uid).get();
     if (doc.exists) {

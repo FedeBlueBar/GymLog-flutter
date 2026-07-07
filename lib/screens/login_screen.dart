@@ -5,6 +5,9 @@ import 'package:gymlog_flutter/notifiers/register_notifier.dart';
 import 'package:gymlog_flutter/widgets/auth_text_field.dart';
 import 'package:gymlog_flutter/widgets/google_sign_in_button.dart';
 
+// Schermata di Login.
+// Permette all'utente di accedere al proprio account tramite Email/Password
+// oppure utilizzando l'autenticazione rapida con Google.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -13,10 +16,13 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  // Controller per leggere il testo inserito nei campi Email e Password
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  // Stato per nascondere o mostrare la password (con l'icona dell'occhio)
   bool _passwordObscured = true;
 
+  // Libera la memoria dei controller quando la schermata viene chiusa
   @override
   void dispose() {
     _emailController.dispose();
@@ -26,14 +32,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Ottiene i Notifier per gestire il processo di Login e di eventuale Registrazione Google
     final loginNotifier = Provider.of<LoginNotifier>(context);
     final registerNotifier = Provider.of<RegisterNotifier>(context, listen: false);
 
+    // Controlla ad ogni render se il login è andato a buon fine o se richiede completamento
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (loginNotifier.isLoginSuccess) {
+        // Login completato: va alla Home
         loginNotifier.onLoginHandled();
         Navigator.of(context).pushReplacementNamed('/home');
       } else if (loginNotifier.navigateToGoogleOnboarding) {
+        // Login con Google parziale (nuovo utente): deve completare il profilo
         loginNotifier.onGoogleOnboardingHandled();
         Navigator.of(context).pushNamed('/google_onboarding');
       }
@@ -49,6 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                // Logo dell'applicazione
                 Image.asset(
                   'assets/images/icona_app_gym.png',
                   width: 200,
@@ -77,12 +88,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
+                
+                // Campo di testo per l'Email
                 AuthTextField(
                   label: "Email",
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                 ),
                 const SizedBox(height: 12),
+                // Campo di testo per la Password con pulsante per nascondere/mostrare il testo
                 AuthTextField(
                   label: "Password",
                   controller: _passwordController,
@@ -100,6 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                   ),
                 ),
+                // Selettore degli errori (mostra il testo rosso se c'è un problema di login)
                 if (loginNotifier.errorMessage != null) ...[
                   const SizedBox(height: 12),
                   Text(
@@ -112,10 +127,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ],
                 const SizedBox(height: 24),
+                // Bottone "Accedi" (disabilitato mentre sta caricando)
                 ElevatedButton(
                   onPressed: loginNotifier.isLoading
                       ? null
                       : () {
+                          // Invio dei dati inseriti verso il Notifier
                           loginNotifier.onEmailChange(_emailController.text);
                           loginNotifier.onPasswordChange(_passwordController.text);
                           loginNotifier.login();
@@ -142,15 +159,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 16),
                 const Divider(color: Colors.grey),
                 const SizedBox(height: 16),
+                // Pulsante personalizzato per accedere velocemente con l'account Google
                 GoogleSignInButton(
                   isLoading: loginNotifier.isLoading,
                   onPressed: () {
                     loginNotifier.loginWithGoogle((uid, nome, cognome, email) {
+                      // Se l'utente non esisteva ed è nuovo, salva i dati provvisori nel RegisterNotifier
                       registerNotifier.setGoogleUserData(uid, nome, cognome, email);
                     });
                   },
                 ),
                 const SizedBox(height: 16),
+                // Rimando alla pagina di Registrazione se l'utente non ha un account
                 TextButton(
                   onPressed: () {
                     Navigator.of(context).pushNamed('/register_step1');
